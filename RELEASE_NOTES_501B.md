@@ -21,3 +21,19 @@ This is the current restored PlayStation 2 build of 500 Card Game.
 ## Known limitation
 
 The audio path intentionally drops short generated cues rather than blocking when audsrv/IOP/SPU2 stops accepting data. Repeated failures place the game in AUDIO BYPASS mode. This protects gameplay from the earlier sound-related hang but means cues can be lost on an unhealthy audio backend.
+
+## Screenshots
+
+The release should include representative screenshots covering:
+
+- Main 500 table/gameplay presentation, including the player hand, CPU hand, bidding/trump UI and court/Joker artwork.
+- In-play trick/table view showing the cards in use.
+- Menus/options and diagnostics where available, especially the in-game VRAM meter and AUDIO OK / AUDIO BYPASS state.
+
+The current screenshot files prepared for this release are:
+
+- `screenshots/501B-main-table.jpg`
+- `screenshots/501B-card-presentation.jpg`
+- `screenshots/501B-in-play.jpg`
+
+These are documentation screenshots/reference captures and should be labelled accordingly where they are not direct PS2 framebuffer captures.
