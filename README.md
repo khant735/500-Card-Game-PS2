@@ -18,6 +18,15 @@ Native PlayStation 2 implementation of the card game **500 (Five Hundred)**, bui
 
 The repository contains the current 501B PS2 source code and its verified reproducible ELF build.
 
+## Downloads
+
+The current verified build and complete restored source archive are stored in the repository:
+
+- [501B PS2 ELF](release/500_Card_Game_PS2_501B.ELF) — 2,032,028 bytes — SHA-256 `dd5fe6326ce6144d816183bd3792949cc314bf3582f7b058f211a57bbce084b3`
+- [501B complete source archive](release/500-Card-Game-PS2-501B-Source.zip) — 3,037,506 bytes — SHA-256 `7727892efd07862eb286d64b35f3fd55dae34d18e0470aba3e32cea33c9bc4cc`
+
+The main C/assembly source is also browsable under `src/`. The complete source ZIP is the authoritative package for the full binary texture/compressed-asset set used by the 501B build.
+
 ## Game and card presentation
 
 The game supports standard 500 play against a CPU opponent, bidding, tricks, a kitty/widow, scoring and match progression. Ruleset choices include:
