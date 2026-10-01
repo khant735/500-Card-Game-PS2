@@ -24,16 +24,12 @@ The audio path intentionally drops short generated cues rather than blocking whe
 
 ## Screenshots
 
-The release should include representative screenshots covering:
+Use **actual in-game captures from the PS2/PCSX2 build**, not target renders or concept/reference artwork.
 
-- Main 500 table/gameplay presentation, including the player hand, CPU hand, bidding/trump UI and court/Joker artwork.
-- In-play trick/table view showing the cards in use.
-- Menus/options and diagnostics where available, especially the in-game VRAM meter and AUDIO OK / AUDIO BYPASS state.
+Prepared verified in-game captures for the 501B release:
 
-The current screenshot files prepared for this release are:
+- `501B_actual_gameplay_01.png` — full gameplay/table view with bidding UI, player hand, CPU hand, VRAM meter, PAD status, AUDIO OK status and emulator performance overlay.
+- `501B_actual_gameplay_02.png` — alternate full gameplay/table view showing a different dealt hand and card presentation.
+- `501B_actual_gameplay_03.png` — gameplay/table view captured at a higher reported frame rate, also showing the runtime VRAM meter and PS2 card presentation.
 
-- `screenshots/501B-main-table.jpg`
-- `screenshots/501B-card-presentation.jpg`
-- `screenshots/501B-in-play.jpg`
-
-These are documentation screenshots/reference captures and should be labelled accordingly where they are not direct PS2 framebuffer captures.
+These are emulator captures of the actual 501B executable and should be used for the GitHub release screenshots.
