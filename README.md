@@ -2,6 +2,16 @@
 
 Native PlayStation 2 implementation of the card game **500 (Five Hundred)**, built with PS2DEV/PS2SDK and gsKit. This repository contains the restored source for the current **501B — HIRES CARD GLYPHS** build together with the reproducible PS2 ELF.
 
+**Target Renders:**
+<img width="810" height="540" alt="501B_In_Play" src="https://github.com/user-attachments/assets/13296653-e9f0-4572-ac86-dd0936afaa72" />
+<img width="810" height="540" alt="501B_Card_Presentation" src="https://github.com/user-attachments/assets/c557b448-56d7-47b5-bfe2-50093eaa031f" />
+<img width="810" height="540" alt="501B_Main_Table" src="https://github.com/user-attachments/assets/3a728343-669f-4fb8-9550-d85392e3be27" />
+
+**Current game build screenshots:**
+<img width="2048" height="976" alt="501B_actual_gameplay_01" src="https://github.com/user-attachments/assets/01b40dea-ce47-4f5f-aa58-724dd26977cf" />
+<img width="2048" height="870" alt="501B_actual_gameplay_03" src="https://github.com/user-attachments/assets/54148a12-2d83-434e-8e93-9ac94a6f8d9d" />
+<img width="2048" height="932" alt="501B_actual_gameplay_02" src="https://github.com/user-attachments/assets/c47ffb29-c808-4152-8e61-3d1d70671a09" />
+
 ## Current verified build
 
 - Build: **501B — HIRES CARD GLYPHS**
