@@ -3,9 +3,10 @@ name: Render 501L multilingual voice packs
 on:
   workflow_dispatch:
   push:
-    branches: [voicepacks-501l]
+    branches:
+      - voicepacks-501l
     paths:
-      - ".github/workflows/render-501l-language-packs.yml"
+      - .github/workflows/render-501l-language-packs.yml
 
 jobs:
   render:
@@ -16,9 +17,12 @@ jobs:
       fail-fast: false
       max-parallel: 1
       matrix:
-        language: [HINDI, FRENCH, SWAHILI]
+        language:
+          - HINDI
+          - FRENCH
+          - SWAHILI
     env:
-      PHRASE_LIMIT: "8"\n      # Smoke pass validates translation batching + PS2 ADPCM encoding.
+      PHRASE_LIMIT: "8"
       TTS_CONCURRENCY: "3"
       VOICE_RATE: "+8%"
       MAX_SECONDS: "6.15"
