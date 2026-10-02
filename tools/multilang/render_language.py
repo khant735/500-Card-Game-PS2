@@ -27,6 +27,21 @@ ALT_TARGETS = {
 'CHINESE_MANDARIN':['zh-CN','zh'], 'CHINESE_CANTONESE':['zh-TW','zh'],
 'FILIPINO_TAGALOG':['tl','fil'], 'AKAN_TWI':['ak'], 'FULA':['ff'],
 }
+NLLB_TARGETS={
+'HINDI':'hin_Deva','ARABIC':'arb_Arab','BENGALI':'ben_Beng','PORTUGUESE':'por_Latn',
+'INDONESIAN':'ind_Latn','URDU':'urd_Arab','RUSSIAN':'rus_Cyrl',
+'CHINESE_MANDARIN':'zho_Hans','CHINESE_CANTONESE':'yue_Hant','SPANISH':'spa_Latn',
+'FRENCH':'fra_Latn','GERMAN':'deu_Latn','ITALIAN':'ita_Latn','JAPANESE':'jpn_Jpan',
+'KOREAN':'kor_Hang','DUTCH':'nld_Latn','THAI':'tha_Thai','FILIPINO_TAGALOG':'tgl_Latn',
+'VIETNAMESE':'vie_Latn','MALAY':'zsm_Latn','TURKISH':'tur_Latn','PERSIAN':'pes_Arab',
+'PUNJABI':'pan_Guru','TAMIL':'tam_Taml','SWAHILI':'swh_Latn','HAUSA':'hau_Latn',
+'YORUBA':'yor_Latn','IGBO':'ibo_Latn','AMHARIC':'amh_Ethi','OROMO':'gaz_Latn',
+'SOMALI':'som_Latn','ZULU':'zul_Latn','XHOSA':'xho_Latn','AFRIKAANS':'afr_Latn',
+'SHONA':'sna_Latn','KINYARWANDA':'kin_Latn','MALAGASY':'plt_Latn','WOLOF':'wol_Latn',
+'LINGALA':'lin_Latn','AKAN_TWI':'aka_Latn','FULA':'fuv_Latn','TIGRINYA':'tir_Ethi',
+'SESOTHO':'sot_Latn','SETSWANA':'tsn_Latn','CHICHEWA':'nya_Latn',
+}
+NLLB_MODEL=os.environ.get('NLLB_MODEL','facebook/nllb-200-distilled-600M')
 MS_TARGETS={
 'CHINESE_MANDARIN':'zh-Hans','CHINESE_CANTONESE':'yue',
 'FILIPINO_TAGALOG':'fil'
@@ -42,94 +57,35 @@ def save_json(path,obj):
 
 _MARK_RE=re.compile(r'\\[\\[\\s*(\\d{3})\\s*\\]\\]')
 
-def translate_microsoft(texts,target):
-    helper=Path(__file__).with_name('translate_microsoft.cjs')
-    cp=subprocess.run(
-        ['node',str(helper),target],
-        input=json.dumps(texts,ensure_ascii=False),
-        text=True,stdout=subprocess.PIPE,stderr=subprocess.PIPE,timeout=120)
-    if cp.returncode!=0:
-        raise RuntimeError('Microsoft translator: '+cp.stderr[-1800:])
-    out=json.loads(cp.stdout)
-    if not isinstance(out,list) or len(out)!=len(texts) or not all(str(x).strip() for x in out):
-        raise RuntimeError('Microsoft translator returned incomplete batch')
-    return [str(x).strip() for x in out]
+def translate_nllb(texts,lang):
+    target=NLLB_TARGETS.get(lang)
+    if not target:
+        raise RuntimeError(f'no NLLB target configured for {lang}')
+    import torch
+    from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
+    print(f'Loading {NLLB_MODEL} for {target}',flush=True)
+    tok=AutoTokenizer.from_pretrained(NLLB_MODEL,src_lang='eng_Latn')
+    model=AutoModelForSeq2SeqLM.from_pretrained(NLLB_MODEL)
+    model.eval()
+    target_id=tok.convert_tokens_to_ids(target)
+    if target_id is None or target_id==tok.unk_token_id:
+        raise RuntimeError(f'NLLB language code not found: {target}')
+    out=[]
+    with torch.inference_mode():
+        for start in range(0,len(texts),8):
+            batch=texts[start:start+8]
+            inp=tok(batch,return_tensors='pt',padding=True,truncation=True,max_length=256)
+            gen=model.generate(**inp,forced_bos_token_id=target_id,max_new_tokens=256,num_beams=1)
+            dec=tok.batch_decode(gen,skip_special_tokens=True)
+            if len(dec)!=len(batch) or not all(x.strip() for x in dec):
+                raise RuntimeError(f'NLLB incomplete batch at {start}')
+            out.extend(x.strip() for x in dec)
+            print(f'NLLB translated {len(out)}/{len(texts)}',flush=True)
+    del model
+    return out,'nllb:'+target
 
 def translate_all(texts,lang,targets):
-    """Use Microsoft batch translation first; Google is a throttled fallback."""
-    last=''
-    ms_target=MS_TARGETS.get(lang,targets[0])
-    try:
-        result=translate_microsoft(texts,ms_target)
-        print(f'Microsoft translated {len(result)}/{len(texts)}',flush=True)
-        return result,'microsoft:'+ms_target
-    except Exception as e:
-        last=f'{type(e).__name__}: {e}'
-        print('Microsoft translation failed, falling back:',last,flush=True)
-    for target in targets:
-        try:
-            tr=GoogleTranslator(source='en',target=target)
-        except Exception as e:
-            last=f'{type(e).__name__}: {e}'
-            continue
-        result=[None]*len(texts); good=True
-        for start in range(0,len(texts),12):
-            stop=min(start+12,len(texts))
-            joined='\\n'.join(f'[[{i:03d}]] {texts[i]}' for i in range(start,stop))
-            translated=None
-            for attempt in range(5):
-                try:
-                    translated=tr.translate(joined)
-                    if translated: break
-                except Exception as e:
-                    last=f'{type(e).__name__}: {e}'
-                time.sleep(2.0+attempt*2.0)
-            if not translated:
-                good=False; break
-            marks=list(_MARK_RE.finditer(translated))
-            if len(marks)!=(stop-start):
-                last=f'batch markers changed by translator ({len(marks)} of {stop-start})'
-                good=False; break
-            seen=set()
-            for j,m in enumerate(marks):
-                idx=int(m.group(1))
-                end=marks[j+1].start() if j+1<len(marks) else len(translated)
-                seg=translated[m.end():end].strip()
-                if idx<start or idx>=stop or not seg:
-                    good=False; last='bad translated batch index/text'; break
-                result[idx]=seg; seen.add(idx)
-            if not good or len(seen)!=(stop-start):
-                good=False; break
-            print(f'translated {stop}/{len(texts)}',flush=True)
-            time.sleep(0.8)
-        if good and all(result):
-            return result,target
-
-    # Fallback: one request at a time, but deliberately throttled.
-    for target in targets:
-        try:
-            tr=GoogleTranslator(source='en',target=target)
-        except Exception as e:
-            last=f'{type(e).__name__}: {e}'
-            continue
-        result=[]
-        try:
-            for text in texts:
-                out=None
-                for attempt in range(5):
-                    try:
-                        out=tr.translate(text)
-                        if out: break
-                    except Exception as e:
-                        last=f'{type(e).__name__}: {e}'
-                    time.sleep(2.0+attempt*2.0)
-                if not out: raise RuntimeError(last or 'empty translation')
-                result.append(out.strip())
-                time.sleep(0.8)
-            return result,target
-        except Exception as e:
-            last=f'{type(e).__name__}: {e}'
-    raise RuntimeError(f'translation failed for {lang}: {last}')
+    return translate_nllb(texts,lang)
 
 def choose_voice(voices,locale,gender):
     want=gender.lower()
