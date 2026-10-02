@@ -1,0 +1,64 @@
+name: Render 501L multilingual voice packs
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [main]
+    paths:
+      - "tools/multilang/**"
+      - ".github/workflows/render-501l-language-packs.yml"
+
+jobs:
+  render:
+    name: Smoke ${{ matrix.language }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      max-parallel: 3
+      matrix:
+        language: [HINDI, FRENCH, SWAHILI]
+    env:
+      PHRASE_LIMIT: "8"
+      TTS_CONCURRENCY: "3"
+      VOICE_RATE: "+8%"
+      MAX_SECONDS: "6.15"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install renderer dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install edge-tts deep-translator
+          ffmpeg -version | head -1
+      - name: Render neural speech
+        run: |
+          python tools/multilang/render_language.py --language "${{ matrix.language }}" --output out
+      - name: Build VPK4 packs
+        if: always()
+        shell: bash
+        run: |
+          set -e
+          LANG="${{ matrix.language }}"
+          ROOT="out/$LANG"
+          DEST="artifact/VOICEPOOLS/_LANGUAGE_BASES/$LANG"
+          mkdir -p "artifact/metadata"
+          [ -f "$ROOT/REPORT.json" ] && cp "$ROOT/REPORT.json" "artifact/metadata/REPORT.json" || true
+          [ -f "$ROOT/translations.tsv" ] && cp "$ROOT/translations.tsv" "artifact/metadata/translations.tsv" || true
+          if [ -d "$ROOT/MALE_ADP" ] && [ -d "$ROOT/FEMALE_ADP" ]; then
+            mkdir -p "$DEST/MALE" "$DEST/FEMALE"
+            python tools/multilang/build_vpk4.py --language "$LANG" --gender MALE --input "$ROOT/MALE_ADP" --output "$DEST/MALE/VOICEPOOL.PAK"
+            python tools/multilang/build_vpk4.py --language "$LANG" --gender FEMALE --input "$ROOT/FEMALE_ADP" --output "$DEST/FEMALE/VOICEPOOL.PAK"
+            sha256sum "$DEST/MALE/VOICEPOOL.PAK" "$DEST/FEMALE/VOICEPOOL.PAK" > "artifact/metadata/SHA256SUMS.txt"
+          fi
+      - name: Upload language artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: 501L-${{ matrix.language }}-smoke
+          path: artifact
+          if-no-files-found: warn
+          compression-level: 0
+          retention-days: 7
