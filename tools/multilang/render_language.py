@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-import argparse, asyncio, json, os, struct, subprocess, time, wave
+import argparse, asyncio, json, os, re, struct, subprocess, time, wave
 from pathlib import Path
 import edge_tts
 from deep_translator import GoogleTranslator
@@ -36,18 +36,74 @@ def save_json(path,obj):
     path.parent.mkdir(parents=True,exist_ok=True)
     path.write_text(json.dumps(obj,indent=2,ensure_ascii=False),encoding='utf-8')
 
-def translate_one(text,lang,targets):
+_MARK_RE=re.compile(r'\\[\\[\\s*(\\d{3})\\s*\\]\\]')
+
+def translate_all(texts,lang,targets):
+    """Translate in marker-preserving chunks to stay below free endpoint limits."""
     last=''
     for target in targets:
-        for attempt in range(4):
-            try:
-                out=GoogleTranslator(source='en',target=target).translate(text)
-                if out and out.strip() and out.strip().lower()!=text.strip().lower():
-                    return out.strip(),target
-                last='translation unchanged/empty'
-            except Exception as e:
-                last=f'{type(e).__name__}: {e}'
-            time.sleep(1.0+attempt*1.5)
+        try:
+            tr=GoogleTranslator(source='en',target=target)
+        except Exception as e:
+            last=f'{type(e).__name__}: {e}'
+            continue
+        result=[None]*len(texts); good=True
+        for start in range(0,len(texts),12):
+            stop=min(start+12,len(texts))
+            joined='\\n'.join(f'[[{i:03d}]] {texts[i]}' for i in range(start,stop))
+            translated=None
+            for attempt in range(5):
+                try:
+                    translated=tr.translate(joined)
+                    if translated: break
+                except Exception as e:
+                    last=f'{type(e).__name__}: {e}'
+                time.sleep(2.0+attempt*2.0)
+            if not translated:
+                good=False; break
+            marks=list(_MARK_RE.finditer(translated))
+            if len(marks)!=(stop-start):
+                last=f'batch markers changed by translator ({len(marks)} of {stop-start})'
+                good=False; break
+            seen=set()
+            for j,m in enumerate(marks):
+                idx=int(m.group(1))
+                end=marks[j+1].start() if j+1<len(marks) else len(translated)
+                seg=translated[m.end():end].strip()
+                if idx<start or idx>=stop or not seg:
+                    good=False; last='bad translated batch index/text'; break
+                result[idx]=seg; seen.add(idx)
+            if not good or len(seen)!=(stop-start):
+                good=False; break
+            print(f'translated {stop}/{len(texts)}',flush=True)
+            time.sleep(0.8)
+        if good and all(result):
+            return result,target
+
+    # Fallback: one request at a time, but deliberately throttled.
+    for target in targets:
+        try:
+            tr=GoogleTranslator(source='en',target=target)
+        except Exception as e:
+            last=f'{type(e).__name__}: {e}'
+            continue
+        result=[]
+        try:
+            for text in texts:
+                out=None
+                for attempt in range(5):
+                    try:
+                        out=tr.translate(text)
+                        if out: break
+                    except Exception as e:
+                        last=f'{type(e).__name__}: {e}'
+                    time.sleep(2.0+attempt*2.0)
+                if not out: raise RuntimeError(last or 'empty translation')
+                result.append(out.strip())
+                time.sleep(0.8)
+            return result,target
+        except Exception as e:
+            last=f'{type(e).__name__}: {e}'
     raise RuntimeError(f'translation failed for {lang}: {last}')
 
 def choose_voice(voices,locale,gender):
@@ -171,17 +227,16 @@ async def main():
         rows=cache.read_text(encoding='utf-8').splitlines()[1:]
         if len(rows)==len(active_clips): translations=[r.split('\t',2)[2] for r in rows]
     if not translations:
-        for i,(name,en) in enumerate(active_clips):
-            try: tr,t=translate_one(en,lang,targets)
-            except Exception as e:
-                report.update(status='unsupported',reason=str(e),translation_index=i,translation_name=name)
-                save_json(out/'REPORT.json',report); return 0
-            translations.append(tr); used.append(t)
-            if (i+1)%20==0: print(f'translated {i+1}/{len(active_clips)}',flush=True)
+        try:
+            translations,t=translate_all([en for _,en in active_clips],lang,targets)
+            used.append(t)
+        except Exception as e:
+            report.update(status='unsupported',reason=str(e))
+            save_json(out/'REPORT.json',report); return 0
         with cache.open('w',encoding='utf-8') as f:
-            f.write('id\tname\ttranslation\n')
+            f.write('id\\tname\\ttranslation\\n')
             for i,((name,_),tr) in enumerate(zip(active_clips,translations)):
-                f.write(f'{i}\t{name}\t{tr.replace(chr(9)," ")}\n')
+                f.write(f'{i}\\t{name}\\t{tr.replace(chr(9)," ")}\\n')
 
     work=out/'_work'; work.mkdir(exist_ok=True)
     male_dir=out/'MALE_ADP'; female_dir=out/'FEMALE_ADP'; male_dir.mkdir(exist_ok=True); female_dir.mkdir(exist_ok=True)
