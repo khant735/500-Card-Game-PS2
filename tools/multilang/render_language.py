@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-import argparse, asyncio, json, os, subprocess, time, wave
+import argparse, asyncio, json, os, struct, subprocess, time, wave
 from pathlib import Path
 import edge_tts
 from deep_translator import GoogleTranslator
@@ -30,6 +30,7 @@ ALT_TARGETS = {
 RATE=os.environ.get('VOICE_RATE','+8%')
 MAX_SECONDS=float(os.environ.get('MAX_SECONDS','6.15'))
 CONCURRENCY=int(os.environ.get('TTS_CONCURRENCY','3'))
+PHRASE_LIMIT=int(os.environ.get('PHRASE_LIMIT','0'))
 
 def save_json(path,obj):
     path.parent.mkdir(parents=True,exist_ok=True)
@@ -58,7 +59,7 @@ def choose_voice(voices,locale,gender):
     c.sort(key=lambda v:(0 if 'Neural' in v.get('ShortName','') else 1,v.get('ShortName','')))
     return c[0] if c else None
 
-def to_wav(src,dst):
+def ffmpeg_to_wav(src,dst):
     filt='silenceremove=start_periods=1:start_duration=0.03:start_threshold=-48dB:stop_periods=-1:stop_duration=0.08:stop_threshold=-48dB,dynaudnorm=f=150:g=9:p=0.9'
     subprocess.run(['ffmpeg','-loglevel','error','-y','-i',str(src),'-af',filt,'-ar','22050','-ac','1','-sample_fmt','s16',str(dst)],check=True)
     with wave.open(str(dst),'rb') as w:
@@ -69,13 +70,47 @@ def to_wav(src,dst):
         subprocess.run(['ffmpeg','-loglevel','error','-y','-i',str(dst),'-af',f'atempo={factor:.6f}','-ar','22050','-ac','1','-sample_fmt','s16',str(tmp)],check=True)
         tmp.replace(dst)
 
-def encode_adp(adpenc,wav,out):
-    cp=subprocess.run([str(adpenc),str(wav),str(out)],stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True)
-    if cp.returncode!=0 or not out.exists():
-        raise RuntimeError(f'adpenc failed ({cp.returncode}): {cp.stdout[-1200:]}')
-    b=out.read_bytes()
-    if len(b)<32 or b[:4]!=b'APCM': raise RuntimeError(f'invalid ADP: {out}')
-    if len(b)>131072: raise RuntimeError(f'ADP too large: {len(b)}')
+def clamp16(x):
+    return -32768 if x < -32768 else 32767 if x > 32767 else x
+
+_F0=(0,60,115,98,122); _F1=(0,0,-52,-55,-60)
+
+def encode_block(src,h1,h2,flags=0):
+    best=None
+    for pred_id in range(5):
+        s1,s2=h1,h2; peak=0
+        for sample in src:
+            pred=(s1*_F0[pred_id]+s2*_F1[pred_id]+32)>>6
+            peak=max(peak,abs(sample-pred)); s2,s1=s1,sample
+        shift=12
+        while shift>0 and peak>(7<<(12-shift)): shift-=1
+        for st in sorted(set((shift,min(shift+1,12)))):
+            scale=1<<(12-st); rh1,rh2=h1,h2; err=0; qv=[]
+            for sample in src:
+                pred=(rh1*_F0[pred_id]+rh2*_F1[pred_id]+32)>>6
+                rr=sample-pred
+                q=(rr+scale//2)//scale if rr>=0 else -((-rr+scale//2)//scale)
+                q=max(-8,min(7,q)); recon=clamp16(pred+q*scale)
+                d=sample-recon; err+=d*d; qv.append(q); rh2,rh1=rh1,recon
+            if best is None or err<best[0]: best=(err,pred_id,st,qv,rh1,rh2)
+    _,pred_id,st,qv,nh1,nh2=best
+    out=bytearray(16); out[0]=(pred_id<<4)|(st&15); out[1]=flags
+    for i in range(14): out[2+i]=(qv[2*i]&15)|((qv[2*i+1]&15)<<4)
+    return bytes(out),nh1,nh2
+
+def encode_wav_adp(wav_path,out_path):
+    with wave.open(str(wav_path),'rb') as w:
+        if w.getnchannels()!=1 or w.getsampwidth()!=2: raise RuntimeError('WAV must be mono s16')
+        rate=w.getframerate(); nframes=w.getnframes(); raw=w.readframes(nframes)
+    samples=list(struct.unpack('<%dh'%(len(raw)//2),raw)) or [0]
+    blocks=[]; h1=h2=0; nblocks=(len(samples)+27)//28
+    for bi in range(nblocks):
+        part=samples[bi*28:(bi+1)*28]; part += [0]*(28-len(part))
+        block,h1,h2=encode_block(part,h1,h2,1 if bi==nblocks-1 else 0); blocks.append(block)
+    end=bytearray(16); end[0]=blocks[-1][0]; end[1]=7; blocks.append(bytes(end))
+    data=b''.join(blocks); pitch=int(rate*4096/48000)
+    out_path.write_bytes(struct.pack('<4sIII',b'APCM',0x101,pitch,nframes)+data)
+    if out_path.stat().st_size>131072: raise RuntimeError(f'ADP too large: {out_path.stat().st_size}')
 
 async def synth_one(sem,text,voice,mp3):
     async with sem:
@@ -90,72 +125,69 @@ async def synth_one(sem,text,voice,mp3):
                 await asyncio.sleep(1.5*(attempt+1))
         raise last
 
-async def synth_gender(translations,voice_name,gender_dir,work,adpenc):
+async def synth_gender(translations,voice_name,gender_dir,work):
     sem=asyncio.Semaphore(CONCURRENCY)
     async def one(idx,name,text):
-        mp3=work/f'{gender_dir.name}_{idx:03d}.mp3'
-        wav=work/f'{gender_dir.name}_{idx:03d}.wav'
-        adp=gender_dir/f'{name}.adp'
+        mp3=work/f'{gender_dir.name}_{idx:03d}.mp3'; wav=work/f'{gender_dir.name}_{idx:03d}.wav'; adp=gender_dir/f'{name}.adp'
         if adp.exists(): return
         await synth_one(sem,text,voice_name,mp3)
-        to_wav(mp3,wav); encode_adp(adpenc,wav,adp)
+        ffmpeg_to_wav(mp3,wav); encode_wav_adp(wav,adp)
         for p in (mp3,wav):
             try: p.unlink()
             except FileNotFoundError: pass
-    for start in range(0,len(CLIPS),18):
+    for start in range(0,len(translations),18):
         results=await asyncio.gather(*[
             asyncio.create_task(one(i,name,translations[i]))
             for i,(name,_) in enumerate(CLIPS[start:start+18],start)
         ],return_exceptions=True)
         errs=[e for e in results if isinstance(e,Exception)]
         if errs: raise errs[0]
-        print(f'{gender_dir.name}: {min(start+18,len(CLIPS))}/{len(CLIPS)}',flush=True)
+        print(f'{gender_dir.name}: {min(start+18,len(translations))}/{len(translations)}',flush=True)
 
 async def main():
     ap=argparse.ArgumentParser()
     ap.add_argument('--language',required=True)
     ap.add_argument('--output',type=Path,default=Path('out'))
-    ap.add_argument('--adpenc',type=Path,required=True)
     a=ap.parse_args()
     lang=a.language.upper(); out=a.output/lang; out.mkdir(parents=True,exist_ok=True)
-    report={'language':lang,'status':'starting','phrase_count':len(CLIPS),'rate':RATE,'max_seconds':MAX_SECONDS}
+    active_clips=CLIPS[:PHRASE_LIMIT] if PHRASE_LIMIT>0 else CLIPS
+    report={'language':lang,'status':'starting','phrase_count':len(active_clips),'catalogue_count':len(CLIPS),'rate':RATE,'max_seconds':MAX_SECONDS}
     if lang not in LANG_CFG:
         report.update(status='unsupported',reason='not in renderer configuration'); save_json(out/'REPORT.json',report); return 0
     locale,target=LANG_CFG[lang]
     voices=await edge_tts.list_voices()
     male=choose_voice(voices,locale,'Male'); female=choose_voice(voices,locale,'Female')
-    report['locale']=locale
-    report['voices']={'male':male['ShortName'] if male else None,'female':female['ShortName'] if female else None}
+    report['locale']=locale; report['voices']={'male':male['ShortName'] if male else None,'female':female['ShortName'] if female else None}
     if not male and not female:
-        report.update(status='unsupported',reason=f'no Edge neural voice found for {locale}'); save_json(out/'REPORT.json',report); return 0
+        report.update(status='unsupported',reason=f'no Edge neural voice found for locale {locale}'); save_json(out/'REPORT.json',report); return 0
     if not male or not female:
         report.update(status='partial',reason='only one native neural gender available; no pitch-shifted fake gender emitted')
         save_json(out/'REPORT.json',report); return 0
 
-    targets=ALT_TARGETS.get(lang,[target]); translations=[]; used=[]
+    translations=[]; used=[]
+    targets=ALT_TARGETS.get(lang,[target])
     cache=out/'translations.tsv'
     if cache.exists():
         rows=cache.read_text(encoding='utf-8').splitlines()[1:]
-        if len(rows)==len(CLIPS): translations=[r.split('\t',2)[2] for r in rows]
+        if len(rows)==len(active_clips): translations=[r.split('\t',2)[2] for r in rows]
     if not translations:
-        for i,(name,en) in enumerate(CLIPS):
+        for i,(name,en) in enumerate(active_clips):
             try: tr,t=translate_one(en,lang,targets)
             except Exception as e:
                 report.update(status='unsupported',reason=str(e),translation_index=i,translation_name=name)
                 save_json(out/'REPORT.json',report); return 0
             translations.append(tr); used.append(t)
-            if (i+1)%20==0: print(f'translated {i+1}/{len(CLIPS)}',flush=True)
+            if (i+1)%20==0: print(f'translated {i+1}/{len(active_clips)}',flush=True)
         with cache.open('w',encoding='utf-8') as f:
             f.write('id\tname\ttranslation\n')
-            for i,((name,_),tr) in enumerate(zip(CLIPS,translations)):
+            for i,((name,_),tr) in enumerate(zip(active_clips,translations)):
                 f.write(f'{i}\t{name}\t{tr.replace(chr(9)," ")}\n')
 
     work=out/'_work'; work.mkdir(exist_ok=True)
-    male_dir=out/'MALE_ADP'; female_dir=out/'FEMALE_ADP'
-    male_dir.mkdir(exist_ok=True); female_dir.mkdir(exist_ok=True)
+    male_dir=out/'MALE_ADP'; female_dir=out/'FEMALE_ADP'; male_dir.mkdir(exist_ok=True); female_dir.mkdir(exist_ok=True)
     try:
-        await synth_gender(translations,male['ShortName'],male_dir,work,a.adpenc)
-        await synth_gender(translations,female['ShortName'],female_dir,work,a.adpenc)
+        await synth_gender(translations,male['ShortName'],male_dir,work)
+        await synth_gender(translations,female['ShortName'],female_dir,work)
     except Exception as e:
         report.update(status='failed',reason=f'{type(e).__name__}: {e}')
         save_json(out/'REPORT.json',report); return 1
