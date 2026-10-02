@@ -31,11 +31,18 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+      - name: Cache NLLB model
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/huggingface
+          key: nllb-200-distilled-600m-v1
       - name: Install renderer dependencies
         run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq ffmpeg
           python -m pip install --upgrade pip
-          pip install edge-tts deep-translator
-          npm install microsoft-translate-api
+          pip install edge-tts transformers sentencepiece protobuf
+          pip install torch --index-url https://download.pytorch.org/whl/cpu
           ffmpeg -version | head -1
       - name: Render neural speech
         run: |
