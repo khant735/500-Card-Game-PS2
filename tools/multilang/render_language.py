@@ -27,6 +27,10 @@ ALT_TARGETS = {
 'CHINESE_MANDARIN':['zh-CN','zh'], 'CHINESE_CANTONESE':['zh-TW','zh'],
 'FILIPINO_TAGALOG':['tl','fil'], 'AKAN_TWI':['ak'], 'FULA':['ff'],
 }
+MS_TARGETS={
+'CHINESE_MANDARIN':'zh-Hans','CHINESE_CANTONESE':'yue',
+'FILIPINO_TAGALOG':'fil'
+}
 RATE=os.environ.get('VOICE_RATE','+8%')
 MAX_SECONDS=float(os.environ.get('MAX_SECONDS','6.15'))
 CONCURRENCY=int(os.environ.get('TTS_CONCURRENCY','3'))
@@ -38,9 +42,30 @@ def save_json(path,obj):
 
 _MARK_RE=re.compile(r'\\[\\[\\s*(\\d{3})\\s*\\]\\]')
 
+def translate_microsoft(texts,target):
+    helper=Path(__file__).with_name('translate_microsoft.cjs')
+    cp=subprocess.run(
+        ['node',str(helper),target],
+        input=json.dumps(texts,ensure_ascii=False),
+        text=True,stdout=subprocess.PIPE,stderr=subprocess.PIPE,timeout=120)
+    if cp.returncode!=0:
+        raise RuntimeError('Microsoft translator: '+cp.stderr[-1800:])
+    out=json.loads(cp.stdout)
+    if not isinstance(out,list) or len(out)!=len(texts) or not all(str(x).strip() for x in out):
+        raise RuntimeError('Microsoft translator returned incomplete batch')
+    return [str(x).strip() for x in out]
+
 def translate_all(texts,lang,targets):
-    """Translate in marker-preserving chunks to stay below free endpoint limits."""
+    """Use Microsoft batch translation first; Google is a throttled fallback."""
     last=''
+    ms_target=MS_TARGETS.get(lang,targets[0])
+    try:
+        result=translate_microsoft(texts,ms_target)
+        print(f'Microsoft translated {len(result)}/{len(texts)}',flush=True)
+        return result,'microsoft:'+ms_target
+    except Exception as e:
+        last=f'{type(e).__name__}: {e}'
+        print('Microsoft translation failed, falling back:',last,flush=True)
     for target in targets:
         try:
             tr=GoogleTranslator(source='en',target=target)
