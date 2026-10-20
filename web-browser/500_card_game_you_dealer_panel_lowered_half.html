@@ -1,0 +1,1670 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>500 — Casino Table</title>
+<style>
+:root{
+  --felt:#0a5635;
+  --felt-dark:#04351f;
+  --gold:#c79a43;
+  --gold-light:#f0d27b;
+  --panel:#090b0a;
+  --blue:#39b9ff;
+  --red:#ff4545;
+  --paper:#f5efe2;
+}
+*{box-sizing:border-box}
+html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#000}
+body{
+  font-family:Georgia,"Times New Roman",serif;
+  color:#fff;
+  background:#17120e;
+}
+#viewport{
+  position:relative;
+  width:100vw;
+  height:100vh;
+  flex:0 0 auto;
+  overflow:hidden;
+  background:#04351f;
+}
+#game{
+  position:absolute;left:-10px;top:-10px;width:1536px;height:1024px;
+  transform-origin:top left;
+}
+.table{
+  position:absolute;inset:0;overflow:hidden;
+  background:
+    radial-gradient(ellipse at 50% 45%,#0d6b41 0%,#095635 40%,#04351f 78%,#022719 100%);
+  border:3px solid #7b5822;
+  border-radius:42px;
+  box-shadow:
+    inset 0 0 105px rgba(0,0,0,.42),
+    inset 0 0 0 2px #b48634,
+    0 10px 28px rgba(0,0,0,.45);
+}
+.table:before{
+  content:"";position:absolute;inset:50px;border:2px solid #bd9141;border-radius:50px;
+  box-shadow:inset 0 0 0 1px rgba(255,242,194,.12);pointer-events:none;
+}
+.table:after{
+  content:"";position:absolute;inset:58px;border-radius:44px;opacity:.075;pointer-events:none;
+  background-image:radial-gradient(#fff 0.65px,transparent .75px);
+  background-size:4px 4px;
+}
+
+/* Casino rail / cup holders */
+.rail{
+  position:absolute;left:8px;right:8px;top:4px;height:54px;z-index:2;
+  border-radius:36px 36px 30% 30%;
+  background:linear-gradient(#2a211b,#171411 72%,#0f0f0d);
+  border-bottom:2px solid #8f6729;
+  box-shadow:inset 0 -5px 11px rgba(0,0,0,.65);
+}
+.cup{
+  position:absolute;z-index:4;width:62px;height:62px;border-radius:50%;
+  background:
+    radial-gradient(circle,#0f0b07 0 28%,#6f4815 30% 37%,#dfac42 40% 48%,#734a15 51% 59%,#171008 63%);
+  border:2px solid #d1a13f;box-shadow:0 3px 8px #000b,inset 0 0 0 2px #5b3912;
+}
+.cup.tl{left:405px;top:18px}.cup.tr{right:405px;top:18px}
+.cup.bl{left:22px;bottom:258px}.cup.br{right:22px;bottom:258px}
+
+/* Shared panel style */
+.panel{
+  position:absolute;z-index:50;
+  background:linear-gradient(145deg,rgba(17,20,18,.98),rgba(3,5,4,.98));
+  border:2px solid #a87d30;border-radius:12px;
+  box-shadow:0 7px 18px #000c,inset 0 0 0 1px rgba(255,255,255,.08);
+}
+.panel-title{
+  color:var(--gold-light);text-align:center;font-weight:700;letter-spacing:.04em;
+  border-bottom:1px solid rgba(188,145,61,.45);
+}
+
+/* Score */
+#scoreboard{left:14px;top:14px;width:162px;height:145px}
+#scoreboard .panel-title{font-size:18px;padding:9px 8px 7px}
+.score-row{
+  display:flex;justify-content:space-between;align-items:center;
+  margin:0 10px;padding:8px 2px;border-bottom:1px solid rgba(188,145,61,.34);
+  font-size:17px;
+}
+.score-row.you{color:var(--blue)}.score-row.cpu{color:#ff4949}
+#handNoRow{text-align:center;font-size:15px;padding:8px}
+
+/* Game log */
+#gamelog{left:14px;top:171px;width:166px;height:145px}
+#gamelog .panel-title{font-size:17px;padding:8px 6px 6px}
+#log{height:108px;overflow:hidden;padding:8px 10px;font-size:13px;line-height:1.45;color:#eee}
+#log div{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+/* Trump */
+#trumpPanel{right:14px;top:14px;width:166px;height:145px;text-align:center}
+#trumpPanel .panel-title{font-size:18px;padding:9px 8px 7px}
+#trumpName{font-size:19px;margin-top:8px}
+#trumpSymbol{font-size:55px;line-height:1;color:#f2d272;text-shadow:0 3px 7px #000}
+
+/* Controls */
+#controlsPanel{right:14px;top:171px;width:188px;height:225px}
+#controlsPanel .panel-title{font-size:17px;padding:8px 6px 6px}
+#controlsText{font-size:13px;line-height:1.55;padding:9px 12px}
+#controlsText b{color:#f0d15e}
+.btn{
+  border:2px solid #a97d30;border-radius:8px;
+  background:linear-gradient(#212521,#080a09);color:#f8edcc;
+  font-family:Georgia,"Times New Roman",serif;font-weight:700;
+  cursor:pointer;box-shadow:0 3px 9px #0009,inset 0 0 0 1px #fff1;
+}
+.btn:hover{border-color:#efd37c;filter:brightness(1.12)}
+.btn:focus-visible{outline:3px solid #6ec8ff;outline-offset:2px}
+.btn:disabled{opacity:.45;cursor:not-allowed;filter:none}
+#helpBtn{
+  position:absolute;
+  right:14px;
+  top:410px;
+  width:188px;
+  height:34px;
+  z-index:70;
+  border:1px solid rgba(235,196,92,.78);
+  border-radius:8px;
+  background:linear-gradient(180deg,#3b2b18,#181108);
+  color:#f6dda0;
+  font:700 12px/1 Arial,sans-serif;
+  letter-spacing:.6px;
+  box-shadow:
+    inset 0 0 0 1px rgba(255,255,255,.04),
+    0 3px 8px rgba(0,0,0,.38);
+}
+#helpBtn:active{
+  transform:translateY(1px);
+}
+
+/* Independent audio controls */
+#soundMixer{
+  right:14px;
+  top:458px;
+  width:188px;
+  height:292px;
+  z-index:72;
+  overflow-y:scroll;
+  overflow-x:hidden;
+  scrollbar-width:thin;
+  scrollbar-color:#b9913d rgba(22,15,8,.55);
+  scrollbar-gutter:stable;
+}
+#soundMixer::-webkit-scrollbar{
+  width:12px;
+  background:rgba(22,15,8,.72);
+}
+#soundMixer::-webkit-scrollbar-track{
+  background:rgba(22,15,8,.72);
+  border-left:1px solid rgba(235,196,92,.30);
+  border-radius:8px;
+}
+#soundMixer::-webkit-scrollbar-thumb{
+  min-height:44px;
+  background:linear-gradient(180deg,#e0bb64,#9b7627);
+  border:2px solid #24170b;
+  border-radius:8px;
+}
+#soundMixer::-webkit-scrollbar-thumb:hover{
+  background:linear-gradient(180deg,#d7ad55,#92742a);
+}
+
+#soundMixer .playlist-box{
+  padding:6px 10px 8px;
+  border-bottom:1px solid rgba(188,145,61,.25);
+}
+#soundMixer .playlist-label{
+  margin-bottom:4px;
+  color:#d9bd76;
+  font:700 9px/1 Arial,sans-serif;
+  letter-spacing:.7px;
+}
+#soundMixer .playlist-track{
+  color:#f3dfaa;
+  font:700 10px/1.2 Arial,sans-serif;
+}
+#soundMixer .playlist-track small{
+  display:block;
+  margin-top:2px;
+  color:#ad9a6b;
+  font-weight:400;
+}
+#track1File,
+#track2File,
+#track3File{
+  position:static;
+  display:block;
+  width:100%;
+  height:auto;
+  margin-top:6px;
+  opacity:1;
+  pointer-events:auto;
+  color:#d9c38a;
+  font:600 9px/1.2 Arial,sans-serif;
+}
+#track1File::file-selector-button,
+#track2File::file-selector-button,
+#track3File::file-selector-button{
+  min-width:72px;
+  margin-right:6px;
+  padding:5px 7px;
+  border:1px solid rgba(235,196,92,.58);
+  border-radius:5px;
+  background:linear-gradient(180deg,#392916,#171008);
+  color:#f4d995;
+  font:700 9px/1 Arial,sans-serif;
+  letter-spacing:.2px;
+}
+
+#soundMixer .playlist-track + .playlist-track{
+  margin-top:7px;
+  padding-top:7px;
+  border-top:1px solid rgba(235,196,92,.22);
+}
+
+#soundMixer .track-actions{
+  display:flex;
+  gap:5px;
+  margin-top:5px;
+}
+#soundMixer .track-actions button{
+  flex:1;
+  min-width:0;
+  height:25px;
+  padding:0 4px;
+  border:1px solid rgba(235,196,92,.55);
+  border-radius:5px;
+  background:linear-gradient(180deg,#392916,#171008);
+  color:#f4d995;
+  font:700 9px/1 Arial,sans-serif;
+}
+#soundMixer .track-actions button:disabled{
+  opacity:.45;
+}
+
+  #soundMixerToggle{
+    position:absolute;
+    right:14px;
+    top:756px;
+    width:188px;
+    height:34px;
+    z-index:73;
+    border:1px solid rgba(235,196,92,.78);
+    border-radius:8px;
+    background:linear-gradient(180deg,#3b2b18,#181108);
+    color:#f6dda0;
+    font:700 12px/1 Arial,sans-serif;
+    letter-spacing:.6px;
+    box-shadow:
+      inset 0 0 0 1px rgba(255,255,255,.04),
+      0 3px 8px rgba(0,0,0,.38);
+  }
+  #soundMixerToggle:active{
+    transform:translateY(1px);
+  }
+
+  #soundMixer{
+    transition:height .18s ease, padding-bottom .18s ease;
+    
+  }
+  #soundMixer .mixer-title-row{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:8px;
+  }
+  #soundMixer .mixer-toggle{
+    flex:0 0 auto;
+    min-width:54px;
+    height:25px;
+    padding:0 9px;
+    border:1px solid rgba(235,196,92,.72);
+    border-radius:7px;
+    background:linear-gradient(180deg,#3a2a17,#171109);
+    color:#f7dda0;
+    font:700 11px/1 Arial,sans-serif;
+    letter-spacing:.45px;
+    box-shadow:inset 0 0 0 1px rgba(255,255,255,.035),0 1px 3px rgba(0,0,0,.42);
+  }
+  #soundMixer .mixer-toggle:active{
+    transform:translateY(1px);
+  }
+  #soundMixer.collapsed{
+    display:none;
+  }
+
+#soundMixer .panel-title{font-size:16px;padding:7px 6px 5px}
+.mixer-row{padding:7px 11px 4px;border-bottom:1px solid rgba(188,145,61,.25)}
+.mixer-row:last-child{border-bottom:0}
+.mixer-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;font-size:13px}
+.mixer-head label{color:#f2dfaa;font-weight:700}
+.mixer-value{color:#58c7ff;font-family:Arial,sans-serif;font-size:12px;min-width:35px;text-align:right}
+#soundMixer input[type="range"]{
+  width:100%;height:20px;margin:0;appearance:none;-webkit-appearance:none;background:transparent;cursor:pointer;
+}
+#soundMixer input[type="range"]::-webkit-slider-runnable-track{
+  height:5px;border-radius:4px;background:linear-gradient(90deg,#6a4c1d,#d5ad58);border:1px solid #2b2110;
+}
+#soundMixer input[type="range"]::-webkit-slider-thumb{
+  appearance:none;-webkit-appearance:none;width:16px;height:16px;border-radius:50%;margin-top:-6px;
+  background:#f5df9a;border:2px solid #7b591f;box-shadow:0 2px 5px #0009;
+}
+#soundMixer input[type="range"]::-moz-range-track{
+  height:5px;border-radius:4px;background:linear-gradient(90deg,#6a4c1d,#d5ad58);border:1px solid #2b2110;
+}
+#soundMixer input[type="range"]::-moz-range-thumb{
+  width:14px;height:14px;border-radius:50%;background:#f5df9a;border:2px solid #7b591f;box-shadow:0 2px 5px #0009;
+}
+
+/* CPU status + hand */
+#status{
+  left:50%;top:12px;transform:translateX(-50%);
+  width:420px;padding:8px 14px;text-align:center;font-size:24px;
+}
+#status .state{color:#ff4a4a}
+#cpuHand{
+  position:absolute;z-index:22;left:50%;top:62px;transform:translateX(-50%);
+  width:650px;height:140px;display:flex;justify-content:center;align-items:flex-start;
+}
+
+/* Cards */
+.card{
+  position:relative;flex:0 0 auto;width:92px;height:142px;padding:7px;
+  border:1px solid #c7bda9;border-radius:9px;
+  display:flex;flex-direction:column;justify-content:space-between;
+  background:
+    radial-gradient(circle at 24% 17%,rgba(255,255,255,.78),transparent 26%),
+    repeating-linear-gradient(0deg,rgba(70,50,25,.025) 0 1px,transparent 1px 4px),
+    linear-gradient(135deg,#fffdf7,#eee5d4 52%,#fffdf8);
+  color:#111;font-family:Georgia,"Times New Roman",serif;
+  box-shadow:0 7px 15px #0009,inset 0 0 0 1px #ffffffaa;
+}
+.card:after{content:"";position:absolute;inset:4px;border:1px solid #0002;border-radius:5px;pointer-events:none}
+.card.red{color:#ad2025}
+.rank{font-size:19px;font-weight:700;z-index:2}.suit{font-size:43px;text-align:center;z-index:2}.bottom{text-align:right}
+.back{
+  width:70px;height:126px;margin-left:-22px;padding:0;
+  overflow:hidden;border:5px solid #f4eadb;
+  background:
+    radial-gradient(circle at 50% 50%,transparent 0 19px,#f1d4ba 19px 21px,transparent 21px),
+    repeating-linear-gradient(45deg,rgba(255,240,220,.20) 0 1px,transparent 1px 5px),
+    repeating-linear-gradient(-45deg,rgba(255,240,220,.12) 0 1px,transparent 1px 5px),
+    linear-gradient(135deg,#671016,#ac252d 48%,#701017);
+  box-shadow:inset 0 0 0 2px #8d1b21,inset 0 0 0 6px #eed2ba,inset 0 0 15px #250307,0 5px 12px #0008;
+}
+.back:first-child{margin-left:0}
+.back:before{
+  content:"";position:absolute;inset:7px;border:1px solid #f2d5bd;border-radius:3px;
+  background:radial-gradient(circle,#f2d5bd 0 1px,transparent 1.4px) 0 0/7px 7px;opacity:.62;
+}
+.back:after{
+  content:"500";position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);
+  width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+  font:bold 9px Georgia;color:#f6ddc4;letter-spacing:1px;
+  background:radial-gradient(circle,#9d2229 0 46%,#611017 47% 69%,#e2bfa0 70% 74%,#721018 75%);
+  border:1px solid #f0d0b7;
+}
+
+/* Gold 500 emblem */
+#emblem{
+  position:absolute;z-index:8;left:50%;top:214px;transform:translateX(-50%);
+  width:600px;height:300px;border:3px solid #bd9343;border-radius:50%;
+  text-align:center;color:#d1ab5a;
+  box-shadow:inset 0 0 0 2px #72521f,0 0 0 1px #fff1;
+  pointer-events:none;
+}
+#emblemMain{
+  font-size:120px;line-height:1;font-weight:700;letter-spacing:.06em;margin-top:38px;
+  color:#d5ac56;text-shadow:0 3px 2px #4b3517,0 0 1px #fff;
+}
+#emblemSub{display:inline-block;margin-top:7px;padding:4px 38px;font-size:25px;letter-spacing:.16em;border-top:2px solid #a97e31;border-bottom:2px solid #a97e31}
+#emblemSuits{font-size:29px;margin-top:13px}.heart,.diamond{color:#bd372e}
+
+/* Current trick centered in emblem */
+#trick{
+  position:absolute;z-index:30;left:50%;top:377px;transform:translate(-50%,-50%);
+  width:300px;height:132px;display:flex;align-items:center;justify-content:center;gap:22px;
+}
+.played{text-align:center;font:12px Arial,sans-serif;color:#eee;text-shadow:0 1px 2px #000}
+.played .card{width:80px;height:116px}.played:nth-child(1) .card{transform:rotate(-2deg)}.played:nth-child(2) .card{transform:rotate(2deg)}
+
+/* Bidding */
+#bidbox{
+  position:absolute;z-index:80;left:50%;top:594px;transform:translateX(-50%);
+  width:560px;padding:8px;background:linear-gradient(#111410,#050705);
+  border:2px solid #a87d30;border-radius:10px;box-shadow:0 7px 18px #000b;
+}
+.bidline{display:flex;align-items:center;justify-content:center;gap:7px}
+.bidline + .bidline{margin-top:7px}
+.bid-label{font-size:13px;color:#e4ca7c}
+#bidbox select{
+  height:36px;padding:5px 8px;border-radius:7px;border:1px solid #9d7732;
+  background:#0b0e0c;color:#f4e8c7;font:14px Georgia;
+}
+#bidbox .btn{height:36px;padding:4px 11px;font-size:14px}
+#passBtn{background:linear-gradient(#8e312e,#491011)}
+.bid-number{min-width:78px;background:linear-gradient(#15412e,#071c13)}
+
+/* Player hand */
+#playerArea{
+  position:absolute;z-index:35;left:50%;bottom:112px;transform:translateX(-50%);
+  width:1380px;height:180px;
+}
+#playerLabel{
+  position:absolute;z-index:100;left:50%;bottom:-20px;transform:translateX(-50%);
+  min-width:310px;text-align:center;padding:7px 25px;
+  background:linear-gradient(#111512,#050705);border:2px solid #a87d30;border-radius:9px;
+  font-size:20px;
+}
+#playerLabel .you{color:var(--blue)}
+#hand{
+  position:absolute;left:0;right:0;bottom:84px;height:146px;
+  display:flex;align-items:flex-end;justify-content:center;gap:0;
+}
+#hand .card{
+  width:94px;height:144px;margin-left:-47px;cursor:pointer;
+  transition:transform .12s,margin .12s,box-shadow .12s;
+}
+#hand .card:first-child{margin-left:0}
+#hand .card:hover,#hand .card:focus{
+  transform:translateY(-18px);margin-left:-35px;margin-right:12px;z-index:120;
+  outline:2px solid #f0d273;box-shadow:0 13px 22px #000b;
+}
+
+/* Footer */
+#actionbar{
+  position:absolute;z-index:60;left:14px;right:14px;bottom:10px;height:58px;
+  display:flex;align-items:center;gap:14px;padding:7px 11px;
+  background:linear-gradient(145deg,#111410,#050705);border:2px solid #a87d30;border-radius:12px;
+  box-shadow:0 7px 18px #000b;
+}
+#rules{flex:1;text-align:center;color:#f0dba1;font-size:17px}
+#rules span{color:#ad8840;margin:0 36px}
+#deal,#newHand,#soundToggle{height:42px;padding:7px 18px;font-size:17px}
+#deal{min-width:210px;background:linear-gradient(#17455f,#071d2e)}
+#soundToggle{min-width:125px;background:linear-gradient(#4c3b16,#1d1507);color:#f5dd96}
+kbd{background:#eee;color:#111;border-radius:3px;padding:1px 5px;font:12px monospace}
+
+/* Result overlay retained as a simple, clean game-layer feature. */
+#trickResult{
+  position:absolute;inset:0;z-index:500;display:flex;align-items:center;justify-content:center;
+  background:rgba(0,0,0,.62);opacity:0;visibility:hidden;pointer-events:none;transition:.2s;
+}
+#trickResult.show{opacity:1;visibility:visible;pointer-events:auto}
+.result-board{
+  width:520px;min-height:300px;padding:20px;text-align:center;
+  background:linear-gradient(145deg,#161916,#050705);border:3px solid #bd9343;border-radius:18px;
+  box-shadow:0 20px 50px #000d;
+}
+.result-kicker{font:700 13px Arial;letter-spacing:.2em;color:#d6b45c}
+#resultTitle{margin-top:7px;font-size:31px;color:#f1d47b}
+#resultAnimals{font-size:85px;margin:22px 0 10px;letter-spacing:18px}
+#resultDetail{font-size:17px;color:#ddd}
+
+
+/* Clear 3D hand cursor and human card-pick animation */
+html,body,#viewport,#viewport *{
+  cursor:none !important;
+}
+/* Use the normal system arrow while hovering titled panels.
+   This selector deliberately outranks the global #viewport * cursor:none rule. */
+body.use-system-panel-cursor #viewport .panel,
+body.use-system-panel-cursor #viewport .panel *{
+  cursor:default !important;
+}
+body.use-system-panel-cursor #handCursor{
+  display:none !important;
+  opacity:0 !important;
+  visibility:hidden !important;
+}
+
+#handCursor{
+  position:fixed;
+  left:0;
+  top:0;
+  width:85px;
+  height:95px;
+  pointer-events:none;
+  z-index:1200;
+  opacity:0;
+  transform:translate(-999px,-999px);
+  transition:opacity .16s ease;
+  will-change:transform;
+}
+#handCursor.visible{opacity:1}
+#handCursor .hand-pose{
+  position:absolute;
+  inset:0;
+  display:none;
+  align-items:center;
+  justify-content:center;
+  font-family:"Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif;
+  font-size:74px;
+  line-height:1;
+  user-select:none;
+  filter:
+    drop-shadow(0 15px 10px rgba(0,0,0,.36))
+    drop-shadow(0 3px 2px rgba(255,255,255,.18));
+  transform-origin:50% 50%;
+  transform-style:preserve-3d;
+}
+#handCursor.point .pose-point{
+  display:flex;
+  transform:rotate(-4deg);
+}
+#handCursor.pinch .pose-pinch{
+  display:flex;
+  transform:scaleX(-1) rotate(-10deg) scale(1.03);
+}
+#handCursor.point .pose-point{
+  animation:handPointSettle .22s ease-out;
+}
+#handCursor.pinch .pose-pinch{
+  animation:handPinch .22s ease-out;
+}
+@keyframes handPointSettle{
+  from{transform:rotate(-4deg) scale(.94)}
+  to{transform:rotate(-4deg) scale(1)}
+}
+@keyframes handPinch{
+  from{transform:scaleX(-1) rotate(-10deg) scale(.94)}
+  to{transform:scaleX(-1) rotate(-10deg) scale(1.03)}
+}
+#hand .card.selected-by-hand{
+  transform:translateY(-9px) scale(1.03);
+  z-index:250;
+  box-shadow:0 18px 28px rgba(0,0,0,.55), inset 0 0 0 1px rgba(255,255,255,.8);
+}
+.flying-card{
+  position:fixed !important;
+  margin:0 !important;
+  pointer-events:none !important;
+  z-index:1100 !important;
+  transition:
+    left .55s cubic-bezier(.22,.9,.25,1),
+    top .55s cubic-bezier(.22,.9,.25,1),
+    transform .55s cubic-bezier(.22,.9,.25,1),
+    box-shadow .55s ease;
+}
+.flying-card.carry{
+  box-shadow:0 18px 30px rgba(0,0,0,.55), inset 0 0 0 1px rgba(255,255,255,.8);
+}
+
+/* All resizing is uniform: JS scales the full 1536x1024 stage. No panel-specific breakpoints. */
+
+/* Final cursor safeguard: panel hover always shows a real system cursor. */
+html body.use-system-panel-cursor #viewport .panel,
+html body.use-system-panel-cursor #viewport .panel *{
+  cursor:default !important;
+}
+</style>
+</head>
+<body>
+<div id="viewport">
+  <div id="game">
+    <section class="table">
+      <div class="rail"></div>
+      <div class="cup tl"></div><div class="cup tr"></div><div class="cup bl"></div><div class="cup br"></div>
+
+      <aside id="scoreboard" class="panel">
+        <div class="panel-title">SCORE</div>
+        <div class="score-row you"><span>You</span><strong id="us">0 / 500</strong></div>
+        <div class="score-row cpu"><span>CPU</span><strong id="them">0 / 500</strong></div>
+        <div id="handNoRow">Hand: <span id="handNo">1</span></div>
+      </aside>
+
+      <aside id="gamelog" class="panel">
+        <div class="panel-title">GAME LOG</div>
+        <div id="log">
+          <div>--- New Hand ---</div>
+          <div style="color:#35baff">Dealer: You</div>
+          <div style="color:#f0d45e">Press DEAL or D to start.</div>
+        </div>
+      </aside>
+
+      <aside id="trumpPanel" class="panel">
+        <div class="panel-title">TRUMP</div>
+        <div id="trumpName">—</div>
+        <div id="trumpSymbol">♠</div>
+      </aside>
+
+      <aside id="controlsPanel" class="panel">
+        <div class="panel-title">CONTROLS</div>
+        <div id="controlsText">
+          <b>D</b> - Deal / New Hand<br>
+          <b>1-0</b> - Play Card<br>
+          <b>P</b> - Pass (during bidding)<br>
+          <b>6-9 / 0</b> - Choose Bid<br>
+          <b>← →</b> - Change Trump<br>
+          <b>Enter</b> - Submit Bid<br>
+          <b>H</b> - Show / Hide Help<br>
+          <b>M</b> - Mute / Unmute
+        </div>
+      </aside>
+      <button type="button" id="helpBtn" class="btn" aria-expanded="true" aria-controls="controlsPanel">Hide Help</button>
+
+      <aside id="soundMixer" class="panel" aria-label="Audio mix">
+        <div class="panel-title">AUDIO MIX</div>
+<div class="mixer-row">
+          <div class="mixer-head"><label for="musicVolume">Music</label><span id="musicVolumeValue" class="mixer-value">100%</span></div>
+          <input id="musicVolume" type="range" min="0" max="100" value="100" aria-label="Music volume">
+        </div>
+        <div class="playlist-box" aria-label="Background music playlist">
+          <div class="playlist-label">PLAYLIST</div>
+          <div class="playlist-track">
+            1. Ace of Spades — Motörhead
+            <small id="track1LoadedLabel">Select an audio file below</small>
+          </div>
+          <input id="track1File" type="file" accept="audio/*" aria-label="Choose Track 1 audio file">
+          <div class="track-actions track1-play-row">
+            <button id="track1PlayBtn" type="button" disabled>Play Track 1</button>
+          </div>
+          <div class="playlist-track">
+            2. The Gambler — Kenny Rogers
+            <small id="track2LoadedLabel">Select an audio file below</small>
+          </div>
+          <input id="track2File" type="file" accept="audio/*" aria-label="Choose Track 2 audio file">
+          <div class="track-actions track2-play-row">
+            <button id="track2PlayBtn" type="button" disabled>Play Track 2</button>
+          </div>
+          <div class="playlist-track">
+            3. Deck of Cards — Tex Ritter
+            <small id="track3LoadedLabel">Select an audio file below</small>
+          </div>
+          <input id="track3File" type="file" accept="audio/*" aria-label="Choose Track 3 audio file">
+          <div class="track-actions track3-play-row">
+            <button id="track3PlayBtn" type="button" disabled>Play Track 3</button>
+          </div>
+        </div>
+        <div class="mixer-row">
+          <div class="mixer-head"><label for="crowdVolume">Crowd</label><span id="crowdVolumeValue" class="mixer-value">100%</span></div>
+          <input id="crowdVolume" type="range" min="0" max="100" value="100" aria-label="Crowd volume">
+        </div>
+        <div class="mixer-row">
+          <div class="mixer-head"><label for="dealerVolume">Dealer</label><span id="dealerVolumeValue" class="mixer-value">100%</span></div>
+          <input id="dealerVolume" type="range" min="0" max="100" value="100" aria-label="Dealer voice volume">
+        </div>
+      </aside>
+  <button id="soundMixerToggle" type="button" aria-expanded="true" aria-controls="soundMixer">Hide Audio Mix</button>
+
+      <div id="status" class="panel">CPU <span class="state">| Pass</span></div>
+      <div id="cpuHand"></div>
+
+      <div id="emblem">
+        <div id="emblemMain">500</div>
+        <div id="emblemSub">FIVE HUNDRED</div>
+        <div id="emblemSuits">♠ <span class="heart">♥</span> <span class="diamond">♦</span> ♣</div>
+      </div>
+
+      <div id="trick"></div>
+
+      <div id="bidbox" style="display:none">
+        <div class="bidline">
+          <span class="bid-label">YOUR BID</span>
+          <select id="bid">
+            <option value="pass">Pass</option><option value="6">6</option><option value="7">7</option>
+            <option value="8">8</option><option value="9">9</option><option value="10">10</option>
+          </select>
+          <span class="bid-label">TRUMP</span>
+          <button type="button" class="btn" id="prevTrump">◀</button>
+          <select id="suit">
+            <option value="♠">♠ Spades</option><option value="♥">♥ Hearts</option>
+            <option value="♦">♦ Diamonds</option><option value="♣">♣ Clubs</option>
+            <option value="NT">No Trumps</option>
+          </select>
+          <button type="button" class="btn" id="nextTrump">▶</button>
+          <button type="button" class="btn" id="bidBtn">SUBMIT BID</button>
+        </div>
+        <div class="bidline">
+          <button type="button" class="btn" id="passBtn">PASS</button>
+          <button type="button" class="btn bid-number" data-bid="6">6</button>
+          <button type="button" class="btn bid-number" data-bid="7">7</button>
+          <button type="button" class="btn bid-number" data-bid="8">8</button>
+          <button type="button" class="btn bid-number" data-bid="9">9</button>
+          <button type="button" class="btn bid-number" data-bid="10">10</button>
+        </div>
+      </div>
+
+      <div id="playerArea">
+        <div id="hand"></div>
+        <div id="playerLabel"><span class="you">YOU</span> <span>(Dealer)</span></div>
+      </div>
+
+      <div id="actionbar">
+        <div id="rules">First to reach 500 points wins. <span>|</span> Dealer leads. <span>|</span> Highest trump wins the trick.</div>
+        <button type="button" class="btn" id="soundToggle">SOUND ON</button>
+        <button type="button" class="btn" id="deal">DEAL</button>
+        <button type="button" class="btn" id="newHand" disabled>NEW HAND</button>
+      </div>
+
+      <div id="trickResult" aria-hidden="true">
+        <div class="result-board">
+          <div class="result-kicker">TRICK COMPLETE</div>
+          <div id="resultTitle">YOU WIN THE TRICK</div>
+          <div id="resultAnimals">🐶 🃏 🐶</div>
+          <div id="resultDetail">You take the trick.</div>
+        </div>
+      </div>
+    </section>
+  </div>
+</div>
+
+
+
+
+
+
+
+
+
+<div id="handCursor" class="point" aria-hidden="true">
+  <div class="hand-pose pose-point">👆🏻</div>
+  <div class="hand-pose pose-pinch">🫳🏻</div>
+</div>
+
+<script>
+(()=>{
+  const BASE_W=1536, BASE_H=1024;
+  const viewport=document.getElementById("viewport");
+  const game=document.getElementById("game");
+
+  function fitGame(){
+    const w=Math.max(320,window.innerWidth);
+    const h=Math.max(320,window.innerHeight);
+
+    // Stretch the game independently on each axis so it exactly matches
+    // the browser window with no unused space at the sides.
+    const scaleX=w/BASE_W;
+    const scaleY=h/BASE_H;
+
+    game.style.left="0px";
+    game.style.top="0px";
+    game.style.transform=`scale(${scaleX},${scaleY})`;
+  }
+  // Titled panels temporarily use the standard system mouse arrow.
+  // The 3D hand remains active everywhere else on the game table.
+  document.querySelectorAll(".panel").forEach(panel=>{
+    panel.addEventListener("pointerenter",()=>{
+      document.body.classList.add("use-system-panel-cursor");
+    });
+    panel.addEventListener("pointerleave",()=>{
+      document.body.classList.remove("use-system-panel-cursor");
+    });
+  });
+
+  fitGame();
+  window.addEventListener("resize",fitGame,{passive:true});
+
+  const suits=["♠","♥","♦","♣"], ranks=["4","5","6","7","8","9","10","J","Q","K","A"];
+  let deck=[],hand=[],cpu=[],scores=[0,0],phase="idle",trick=[],tricks=[0,0],contract=null,trump=null,current=0,handNo=1;
+  let nextCardId=1,isAnimatingPlay=false,cursorLocked=false,lastPointerX=window.innerWidth*0.7,lastPointerY=window.innerHeight*0.8;
+  const $=id=>document.getElementById(id);
+
+  // ---------------- Casino audio engine ----------------
+  // Everything is generated locally with Web Audio + browser speech synthesis.
+  // Audio starts only after the first click/key press because browsers block autoplay.
+  let audioCtx=null, masterGain=null, fxGain=null;
+  let soundMuted=false;
+  let musicVolume=1.00, crowdVolume=1.00, dealerVolume=1.00;
+  let dealerVoiceGender="male";
+  let playlistAudio=null, playlistObjectUrl=null, playlistTrackLoaded=false;
+  let playlistAudio2=null, playlistObjectUrl2=null, playlistTrack2Loaded=false;
+  let playlistAudio3=null, playlistObjectUrl3=null, playlistTrack3Loaded=false;
+  const activeAudioNodes=new Set();
+  const HUMAN_CROWD_CHEERS=[
+    "https://upload.wikimedia.org/wikipedia/commons/transcoded/0/09/Applause_ii.ogg/Applause_ii.ogg.mp3",
+    "https://upload.wikimedia.org/wikipedia/commons/transcoded/8/8e/Applause.ogg/Applause.ogg.mp3"
+  ];
+  const HUMAN_CROWD_SUBDUED=[
+    "https://upload.wikimedia.org/wikipedia/commons/transcoded/a/a3/Slow_starting_applause.ogg/Slow_starting_applause.ogg.mp3"
+  ];
+  const activeCrowdSamples=new Set();
+  const humanCrowdBuffers={cheer:[],subdued:[]};
+  let crowdLoadPromise=null;
+  let lastCheerIndex=-1,lastSubduedIndex=-1;
+
+
+  async function fetchAudioArrayBuffer(url){
+    const response=await fetch(url,{mode:"cors",cache:"force-cache"});
+    if(!response.ok) throw new Error(`Crowd audio request failed: ${response.status}`);
+    return response.arrayBuffer();
+  }
+
+  function decodeAudioBuffer(arrayBuffer){
+    return new Promise((resolve,reject)=>{
+      const copy=arrayBuffer.slice(0);
+      const p=audioCtx.decodeAudioData(copy,resolve,reject);
+      if(p&&typeof p.then==="function") p.then(resolve).catch(reject);
+    });
+  }
+
+  function loadHumanCrowdBuffers(){
+    if(!audioCtx) return Promise.resolve();
+    if(humanCrowdBuffers.cheer.length&&humanCrowdBuffers.subdued.length) return Promise.resolve();
+    if(crowdLoadPromise) return crowdLoadPromise;
+
+    const decodeUrl=url=>fetchAudioArrayBuffer(url).then(decodeAudioBuffer);
+    crowdLoadPromise=Promise.all([
+      Promise.all(HUMAN_CROWD_CHEERS.map(decodeUrl)),
+      Promise.all(HUMAN_CROWD_SUBDUED.map(decodeUrl))
+    ]).then(([cheers,subdued])=>{
+      humanCrowdBuffers.cheer=cheers.filter(Boolean);
+      humanCrowdBuffers.subdued=subdued.filter(Boolean);
+    }).catch(err=>{
+      console.warn("Recorded crowd audio could not load:",err);
+      crowdLoadPromise=null;
+    });
+    return crowdLoadPromise;
+  }
+
+
+  function ensureAudio(){
+    if(soundMuted) return;
+    const AC=window.AudioContext||window.webkitAudioContext;
+    if(!AC) return;
+
+    if(!audioCtx){
+      audioCtx=new AC();
+
+      masterGain=audioCtx.createGain();
+      masterGain.gain.value=1.00;
+      masterGain.connect(audioCtx.destination);
+
+      fxGain=audioCtx.createGain();
+      fxGain.gain.value=crowdVolume;
+      fxGain.connect(masterGain);
+    }
+
+    const startAudioWhenReady=()=>{
+      if(!soundMuted && audioCtx && audioCtx.state==="running"){
+        loadHumanCrowdBuffers();
+      }
+    };
+
+    if(audioCtx.state==="suspended"){
+      audioCtx.resume().then(startAudioWhenReady).catch(()=>{});
+    }else{
+      startAudioWhenReady();
+    }
+  }
+
+  function pickCrowdBuffer(kind){
+    const bank=humanCrowdBuffers[kind]||[];
+    if(!bank.length) return null;
+    let idx=Math.floor(Math.random()*bank.length);
+    if(bank.length>1){
+      const last=kind==="cheer"?lastCheerIndex:lastSubduedIndex;
+      if(idx===last) idx=(idx+1)%bank.length;
+    }
+    if(kind==="cheer") lastCheerIndex=idx;
+    else lastSubduedIndex=idx;
+    return bank[idx];
+  }
+
+  function playHumanCrowd(kind,volume=.9){
+    if(soundMuted) return;
+    ensureAudio();
+    if(!audioCtx||!fxGain) return;
+
+    const play=()=>{
+      const buffer=pickCrowdBuffer(kind);
+      if(!buffer||soundMuted) return;
+
+      const usableDuration=Math.min(
+        kind==="cheer" ? 4.3 : 2.8,
+        Math.max(1.2,buffer.duration)
+      );
+
+      const src=audioCtx.createBufferSource();
+      const gain=audioCtx.createGain();
+      const highpass=audioCtx.createBiquadFilter();
+      const panner=audioCtx.createStereoPanner ? audioCtx.createStereoPanner() : null;
+
+      src.buffer=buffer;
+      // Tiny speed variation prevents repeated samples sounding identical.
+      src.playbackRate.value=kind==="cheer"
+        ? .98+Math.random()*.04
+        : .99+Math.random()*.025;
+
+      highpass.type="highpass";
+      highpass.frequency.value=65;
+      highpass.Q.value=.32;
+
+      const now=audioCtx.currentTime+.01;
+      const naturalLevel=volume*(.90+Math.random()*.14);
+      gain.gain.setValueAtTime(.0001,now);
+      gain.gain.exponentialRampToValueAtTime(Math.max(.001,naturalLevel),now+.11);
+      gain.gain.setValueAtTime(Math.max(.001,naturalLevel*.96),now+Math.max(.18,usableDuration-.42));
+      gain.gain.exponentialRampToValueAtTime(.0001,now+usableDuration);
+
+      if(panner){
+        // Crowd feels spread around the table instead of coming from dead center.
+        panner.pan.value=(Math.random()-.5)*.55;
+        src.connect(highpass).connect(gain).connect(panner).connect(fxGain);
+      }else{
+        src.connect(highpass).connect(gain).connect(fxGain);
+      }
+
+      activeCrowdSamples.add(src);
+      src.onended=()=>activeCrowdSamples.delete(src);
+
+      // Start at a slightly different point in long applause recordings.
+      const maxOffset=Math.max(0,buffer.duration-usableDuration-.15);
+      const offset=maxOffset>0 ? Math.random()*Math.min(maxOffset,2.2) : 0;
+      src.start(now,offset,usableDuration);
+    };
+
+    if((humanCrowdBuffers[kind]||[]).length){
+      play();
+    }else{
+      loadHumanCrowdBuffers().then(play);
+    }
+  }
+
+  function crowdCheer(){
+    playHumanCrowd("cheer",.94);
+  }
+
+  function crowdSubdued(){
+    playHumanCrowd("subdued",.42);
+  }
+
+  function cardName(c){
+    if(!c) return "";
+    if(c.r==="Joker") return "Joker";
+    const rankNames={J:"Jack",Q:"Queen",K:"King",A:"Ace"};
+    const suitNames={"♠":"Spades","♥":"Hearts","♦":"Diamonds","♣":"Clubs"};
+    return `${rankNames[c.r]||c.r} of ${suitNames[c.s]||c.s}`;
+  }
+
+  function spokenSuit(s){
+    const suitNames={"♠":"Spades","♥":"Hearts","♦":"Diamonds","♣":"Clubs","NT":"No Trumps"};
+    return suitNames[s]||String(s||"No Trump");
+  }
+
+  function pickDealerVoice(gender){
+    if(!("speechSynthesis" in window)) return null;
+
+    const voices=speechSynthesis.getVoices();
+    if(!voices.length) return null;
+
+    const english=voices.filter(v=>/^en/i.test(v.lang||""));
+    const pool=english.length?english:voices;
+
+    const maleNames=/daniel|george|david|james|thomas|fred|arthur|ryan|oliver|alex|guy|male/i;
+    const femaleNames=/samantha|karen|moira|serena|sonia|libby|ava|victoria|fiona|female|zira|hazel|susan/i;
+    const wanted=gender==="female"?femaleNames:maleNames;
+    const opposite=gender==="female"?maleNames:femaleNames;
+
+    const scored=pool.map((v,index)=>{
+      const name=v.name||"";
+      const lang=v.lang||"";
+      let score=0;
+
+      if(wanted.test(name)) score+=30;
+      if(opposite.test(name)) score-=18;
+      if(/natural|neural|premium|enhanced|online/i.test(name)) score+=10;
+      if(/google|microsoft|apple/i.test(name)) score+=5;
+      if(/^en-GB/i.test(lang)) score+=5;
+      else if(/^en-AU/i.test(lang)) score+=3;
+      else if(/^en-US/i.test(lang)) score+=2;
+      if(/espeak|festival|flite|pico/i.test(name)) score-=25;
+
+      return {voice:v,score,index};
+    }).sort((a,b)=>b.score-a.score || a.index-b.index);
+
+    // If the platform exposes recognizably gendered voices, use the best match.
+    const clearMatch=scored.find(x=>wanted.test(x.voice.name||""));
+    if(clearMatch) return clearMatch.voice;
+
+    // Otherwise deliberately choose different voices for male/female rotation
+    // when at least two English voices are available.
+    if(scored.length>1){
+      return gender==="female" ? scored[1].voice : scored[0].voice;
+    }
+
+    return scored[0]?.voice||pool[0]||null;
+  }
+
+  function toggleDealerVoiceForNextTrick(){
+    dealerVoiceGender=dealerVoiceGender==="male"?"female":"male";
+  }
+
+  function dealerSay(text,delay=0){
+    if(soundMuted||!("speechSynthesis" in window)) return;
+    window.setTimeout(()=>{
+      if(soundMuted) return;
+
+      const u=new SpeechSynthesisUtterance(text);
+      const preferred=pickDealerVoice(dealerVoiceGender);
+
+      if(preferred) u.voice=preferred;
+      u.volume=dealerVolume;
+      u.rate=dealerVoiceGender==="female"?1.04:1.06;
+      u.pitch=dealerVoiceGender==="female"?1.08:.78;
+      speechSynthesis.speak(u);
+    },delay);
+  }
+
+  function crowdReactionForCard(c){
+    if(!c) return;
+    const high=["10","J","Q","K","A"];
+    const impressive=c.r==="Joker" || (trump&&c.s===trump) || high.includes(c.r);
+
+    // Routine cards get silence. Only notable plays earn a brief audience response.
+    if(impressive && Math.random()<.42){
+      playHumanCrowd("cheer",.52);
+    }
+  }
+
+
+  function ensurePlaylistAudio(){
+    if(playlistAudio) return playlistAudio;
+    playlistAudio=new Audio();
+    playlistAudio.preload="metadata";
+    playlistAudio.volume=musicVolume;
+
+    playlistAudio.addEventListener("play",()=>{
+      if(playlistAudio2 && !playlistAudio2.paused) playlistAudio2.pause();
+      if(playlistAudio3 && !playlistAudio3.paused) playlistAudio3.pause();
+      $("track1PlayBtn").textContent="Pause";
+      $("track1LoadedLabel").textContent="Playing";
+    });
+    playlistAudio.addEventListener("pause",()=>{
+      $("track1PlayBtn").textContent="Play";
+      if(playlistTrackLoaded && !playlistAudio.ended){
+        $("track1LoadedLabel").textContent="Loaded";
+      }
+    });
+    playlistAudio.addEventListener("ended",()=>{
+      $("track1PlayBtn").textContent="Play";
+      $("track1LoadedLabel").textContent="Finished";
+    });
+    playlistAudio.addEventListener("error",()=>{
+      $("track1LoadedLabel").textContent="Unsupported audio file";
+    });
+
+    return playlistAudio;
+  }
+
+  function loadTrack1Audio(file){
+    if(!file) return;
+    const audio=ensurePlaylistAudio();
+
+    audio.pause();
+    audio.currentTime=0;
+
+    if(playlistObjectUrl) URL.revokeObjectURL(playlistObjectUrl);
+    playlistObjectUrl=URL.createObjectURL(file);
+
+    audio.src=playlistObjectUrl;
+    audio.volume=musicVolume;
+    playlistTrackLoaded=true;
+
+    $("track1LoadedLabel").textContent=file.name;
+    $("track1PlayBtn").disabled=false;
+    $("track1PlayBtn").textContent="Play";
+  }
+
+  function toggleTrack1(){
+    if(!playlistTrackLoaded) return;
+    const audio=ensurePlaylistAudio();
+
+    if(audio.paused){
+      if(soundMuted){
+        $("track1LoadedLabel").textContent="Turn Sound On first";
+        return;
+      }
+      audio.volume=musicVolume;
+      audio.play().catch(()=>{
+        $("track1LoadedLabel").textContent="Press Play again";
+      });
+    }else{
+      audio.pause();
+    }
+  }
+
+  function ensurePlaylistAudio2(){
+    if(playlistAudio2) return playlistAudio2;
+    playlistAudio2=new Audio();
+    playlistAudio2.preload="metadata";
+    playlistAudio2.volume=musicVolume;
+
+    playlistAudio2.addEventListener("play",()=>{
+      if(playlistAudio && !playlistAudio.paused) playlistAudio.pause();
+      if(playlistAudio3 && !playlistAudio3.paused) playlistAudio3.pause();
+      $("track2PlayBtn").textContent="Pause";
+      $("track2LoadedLabel").textContent="Playing";
+    });
+    playlistAudio2.addEventListener("pause",()=>{
+      $("track2PlayBtn").textContent="Play";
+      if(playlistTrack2Loaded && !playlistAudio2.ended){
+        $("track2LoadedLabel").textContent="Loaded";
+      }
+    });
+    playlistAudio2.addEventListener("ended",()=>{
+      $("track2PlayBtn").textContent="Play";
+      $("track2LoadedLabel").textContent="Finished";
+    });
+    playlistAudio2.addEventListener("error",()=>{
+      $("track2LoadedLabel").textContent="Unsupported audio file";
+    });
+
+    return playlistAudio2;
+  }
+
+  function loadTrack2Audio(file){
+    if(!file) return;
+    const audio=ensurePlaylistAudio2();
+
+    audio.pause();
+    audio.currentTime=0;
+
+    if(playlistObjectUrl2) URL.revokeObjectURL(playlistObjectUrl2);
+    playlistObjectUrl2=URL.createObjectURL(file);
+
+    audio.src=playlistObjectUrl2;
+    audio.volume=musicVolume;
+    playlistTrack2Loaded=true;
+
+    $("track2LoadedLabel").textContent=file.name;
+    $("track2PlayBtn").disabled=false;
+    $("track2PlayBtn").textContent="Play";
+  }
+
+  function toggleTrack2(){
+    if(!playlistTrack2Loaded) return;
+    const audio=ensurePlaylistAudio2();
+
+    if(audio.paused){
+      if(soundMuted){
+        $("track2LoadedLabel").textContent="Turn Sound On first";
+        return;
+      }
+      if(playlistAudio && !playlistAudio.paused) playlistAudio.pause();
+      audio.volume=musicVolume;
+      audio.play().catch(()=>{
+        $("track2LoadedLabel").textContent="Press Play again";
+      });
+    }else{
+      audio.pause();
+    }
+  }
+
+  function ensurePlaylistAudio3(){
+    if(playlistAudio3) return playlistAudio3;
+    playlistAudio3=new Audio();
+    playlistAudio3.preload="metadata";
+    playlistAudio3.volume=musicVolume;
+
+    playlistAudio3.addEventListener("play",()=>{
+      if(playlistAudio && !playlistAudio.paused) playlistAudio.pause();
+      if(playlistAudio2 && !playlistAudio2.paused) playlistAudio2.pause();
+      $("track3PlayBtn").textContent="Pause";
+      $("track3LoadedLabel").textContent="Playing";
+    });
+    playlistAudio3.addEventListener("pause",()=>{
+      $("track3PlayBtn").textContent="Play";
+      if(playlistTrack3Loaded && !playlistAudio3.ended){
+        $("track3LoadedLabel").textContent="Loaded";
+      }
+    });
+    playlistAudio3.addEventListener("ended",()=>{
+      $("track3PlayBtn").textContent="Play";
+      $("track3LoadedLabel").textContent="Finished";
+    });
+    playlistAudio3.addEventListener("error",()=>{
+      $("track3LoadedLabel").textContent="Unsupported audio file";
+    });
+
+    return playlistAudio3;
+  }
+
+  function loadTrack3Audio(file){
+    if(!file) return;
+    const audio=ensurePlaylistAudio3();
+
+    audio.pause();
+    audio.currentTime=0;
+
+    if(playlistObjectUrl3) URL.revokeObjectURL(playlistObjectUrl3);
+    playlistObjectUrl3=URL.createObjectURL(file);
+
+    audio.src=playlistObjectUrl3;
+    audio.volume=musicVolume;
+    playlistTrack3Loaded=true;
+
+    $("track3LoadedLabel").textContent=file.name;
+    $("track3PlayBtn").disabled=false;
+    $("track3PlayBtn").textContent="Play";
+  }
+
+  function toggleTrack3(){
+    if(!playlistTrack3Loaded) return;
+    const audio=ensurePlaylistAudio3();
+
+    if(audio.paused){
+      if(soundMuted){
+        $("track3LoadedLabel").textContent="Turn Sound On first";
+        return;
+      }
+      if(playlistAudio && !playlistAudio.paused) playlistAudio.pause();
+      if(playlistAudio2 && !playlistAudio2.paused) playlistAudio2.pause();
+      audio.volume=musicVolume;
+      audio.play().catch(()=>{
+        $("track3LoadedLabel").textContent="Press Play again";
+      });
+    }else{
+      audio.pause();
+    }
+  }
+
+  function setMixerValue(kind,value){
+    const v=Math.max(0,Math.min(100,Number(value)||0));
+    const normalized=v/100;
+
+    if(kind==="music"){
+      musicVolume=normalized;
+      $("musicVolumeValue").textContent=Math.round(v)+"%";
+      if(playlistAudio) playlistAudio.volume=musicVolume;
+      if(playlistAudio2) playlistAudio2.volume=musicVolume;
+      if(playlistAudio3) playlistAudio3.volume=musicVolume;
+    }else if(kind==="crowd"){
+      crowdVolume=normalized;
+      $("crowdVolumeValue").textContent=Math.round(v)+"%";
+      if(audioCtx&&fxGain&&!soundMuted){
+        fxGain.gain.cancelScheduledValues(audioCtx.currentTime);
+        fxGain.gain.setTargetAtTime(crowdVolume,audioCtx.currentTime,.035);
+      }
+    }else if(kind==="dealer"){
+      dealerVolume=normalized;
+      $("dealerVolumeValue").textContent=Math.round(v)+"%";
+    }
+  }
+
+  function setSoundMuted(muted){
+    soundMuted=!!muted;
+    if(playlistAudio){
+      playlistAudio.muted=soundMuted;
+      if(!soundMuted) playlistAudio.volume=musicVolume;
+    }
+    if(playlistAudio2){
+      playlistAudio2.muted=soundMuted;
+      if(!soundMuted) playlistAudio2.volume=musicVolume;
+    }
+    if(playlistAudio3){
+      playlistAudio3.muted=soundMuted;
+      if(!soundMuted) playlistAudio3.volume=musicVolume;
+    }
+    if(masterGain&&audioCtx){
+      masterGain.gain.cancelScheduledValues(audioCtx.currentTime);
+      masterGain.gain.setTargetAtTime(soundMuted?0:.88,audioCtx.currentTime,.04);
+    }
+    if(soundMuted && "speechSynthesis" in window) speechSynthesis.cancel();
+    if(soundMuted){
+      activeCrowdSamples.forEach(src=>{try{src.stop()}catch(_){}});
+      activeCrowdSamples.clear();
+    }
+    if(!soundMuted){
+      ensureAudio();
+    }
+    $("soundToggle").textContent=soundMuted?"SOUND OFF":"SOUND ON";
+  }
+  // ------------------------------------------------------
+
+  function log(text){
+    const d=document.createElement("div");d.textContent=text;$("log").prepend(d);
+    while($("log").children.length>7)$("log").lastElementChild.remove();
+  }
+  function makeDeck(){
+    deck=[];
+    nextCardId=1;
+    for(const s of suits)for(const r of ranks)deck.push({r,s,id:nextCardId++});
+    deck.push({r:"Joker",s:"★",id:nextCardId++},{r:"Joker",s:"★",id:nextCardId++});
+    for(let i=deck.length-1;i>0;i--){
+      const j=Math.floor(Math.random()*(i+1));
+      [deck[i],deck[j]]=[deck[j],deck[i]];
+    }
+  }
+  function deal(){
+    dealerVoiceGender="male";
+    ensureAudio();
+    makeDeck();hand=[];cpu=[];trick=[];tricks=[0,0];contract=null;trump=null;current=0;phase="bidding";
+    for(let i=0;i<10;i++){hand.push(deck.pop());cpu.push(deck.pop())}
+    $("bidbox").style.display="block";
+    $("deal").disabled=true;$("newHand").disabled=true;
+    const currentHandNumber=handNo++;
+    $("handNo").textContent=currentHandNumber;
+    log("--- New Hand ---");log("Dealer: You");log("Choose your bid or pass.");
+    render();
+    dealerSay(`Hand number ${currentHandNumber}. Bidding begins.`);
+  }
+  function sortCards(a,b){
+    if(a.r==="Joker")return 1;if(b.r==="Joker")return -1;
+    return suits.indexOf(a.s)-suits.indexOf(b.s)||ranks.indexOf(a.r)-ranks.indexOf(b.r);
+  }
+  function red(s){return s==="♥"||s==="♦"}
+  function cardEl(c,click=false,index=-1){
+    const e=document.createElement(click?"button":"div");
+    e.className="card "+(red(c.s)?"red ":"");
+    e.dataset.cardId=String(c.id ?? "");
+    e.innerHTML=`<span class="rank">${c.r}</span><span class="suit">${c.s}</span><span class="rank bottom">${index>=0?index+1:c.r}</span>`;
+    if(click){
+      e.type="button";e.title=`Play card ${index+1}`;
+      e.addEventListener("click",()=>play(c,e));
+    }
+    return e;
+  }
+  function legal(c){
+    if(!trick.length)return true;
+    const lead=trick[0].c.s;
+    if(c.r==="Joker"||c.s===lead)return true;
+    return !hand.some(x=>x.s===lead);
+  }
+  function wait(ms){ return new Promise(resolve=>setTimeout(resolve, ms)); }
+  function handCursor(){ return $("handCursor"); }
+  function setHandPose(pose){
+    const el=handCursor();
+    el.classList.remove("point","pinch");
+    el.classList.add(pose);
+  }
+  function placeHandAt(x,y,duration=0){
+    const el=handCursor();
+    const pinch=el.classList.contains("pinch");
+    const offsetX=pinch?44:39;
+    const offsetY=pinch?24:10;
+    el.style.transition=duration?`transform ${duration}ms cubic-bezier(.22,.9,.25,1), opacity .18s ease`:"opacity .18s ease";
+    el.style.transform=`translate(${x-offsetX}px,${y-offsetY}px)`;
+  }
+  function showHandCursor(){
+    const el=handCursor();
+    el.classList.add("visible");
+  }
+  function findHandCardElement(card){
+    return $("hand").querySelector(`[data-card-id="${card.id}"]`);
+  }
+  async function animateCardPlay(card, sourceEl){
+    if(!sourceEl) return;
+    const cursor=handCursor();
+    const trickBox=$("trick");
+    const cardRect=sourceEl.getBoundingClientRect();
+    const trickRect=trickBox.getBoundingClientRect();
+    const targetX=trickRect.left + trickRect.width/2 + (trick.length?34:-34);
+    const targetY=trickRect.top + trickRect.height/2 + 8;
+
+    cursorLocked=true;
+    showHandCursor();
+    setHandPose("point");
+    placeHandAt(cardRect.left + cardRect.width*.72, cardRect.top + cardRect.height*.18, 180);
+    sourceEl.classList.add("selected-by-hand");
+    await wait(240);
+
+    setHandPose("pinch");
+    placeHandAt(cardRect.left + cardRect.width*.56, cardRect.top + cardRect.height*.44, 170);
+    await wait(180);
+
+    const ghost=sourceEl.cloneNode(true);
+    ghost.classList.add("flying-card","carry");
+    ghost.style.width=`${cardRect.width}px`;
+    ghost.style.height=`${cardRect.height}px`;
+    ghost.style.left=`${cardRect.left}px`;
+    ghost.style.top=`${cardRect.top}px`;
+    ghost.style.transform="translate(0,0) rotate(0deg) scale(1)";
+    document.body.appendChild(ghost);
+
+    sourceEl.style.visibility="hidden";
+    placeHandAt(cardRect.left + cardRect.width*.56, cardRect.top + cardRect.height*.44, 0);
+    await wait(30);
+
+    ghost.style.left=`${targetX - cardRect.width*.5}px`;
+    ghost.style.top=`${targetY - cardRect.height*.5}px`;
+    ghost.style.transform="translate(0,-8px) rotate(-7deg) scale(.92)";
+    placeHandAt(targetX + 10, targetY + 8, 540);
+    await wait(570);
+
+    ghost.remove();
+    sourceEl.style.visibility="";
+    sourceEl.classList.remove("selected-by-hand");
+    cursorLocked=false;
+    setHandPose("point");
+    placeHandAt(lastPointerX,lastPointerY,120);
+  }
+
+  function render(){
+    $("us").textContent=scores[0]+" / 500";
+    $("them").textContent=scores[1]+" / 500";
+    const names={"♠":"Spades","♥":"Hearts","♦":"Diamonds","♣":"Clubs"};
+    $("trumpName").textContent=trump==="NT"?"No Trumps":trump?names[trump]:"—";
+    $("trumpSymbol").textContent=trump==="NT"?"NT":trump||"♠";
+
+    $("hand").replaceChildren(...hand.slice().sort(sortCards).map((c,i)=>cardEl(c,phase==="play"&&current===0&&legal(c),i)));
+
+    const ch=$("cpuHand");ch.replaceChildren();
+    cpu.forEach(()=>{const e=document.createElement("div");e.className="card back";ch.append(e)});
+
+    $("trick").replaceChildren(...trick.map(t=>{
+      const w=document.createElement("div");w.className="played";
+      w.append(cardEl(t.c));
+      const label=document.createElement("div");label.textContent=t.p===0?"YOU":"CPU";w.append(label);
+      return w;
+    }));
+
+    $("status").innerHTML=
+      phase==="bidding"?'YOU <span class="state">| Your Bid</span>':
+      phase==="play"?(current===0?'YOU <span class="state" style="color:#39b9ff">| Your Turn</span>':'CPU <span class="state">| Thinking…</span>'):
+      phase==="done"?'Hand Complete':'CPU <span class="state">| Pass</span>';
+  }
+  function submitBid(){
+    if(phase!=="bidding")return;
+    const v=$("bid").value;
+    if(v==="pass"){
+      contract={level:6,suit:"♠",by:1};
+      trump="♠";
+      log("You pass. CPU takes 6 Spades.");
+      dealerSay("Player passes.",0);
+      dealerSay("CPU bids 6 Spades.",650);
+      dealerSay("Trump is Spades.",1350);
+    }else{
+      contract={level:+v,suit:$("suit").value,by:0};
+      trump=contract.suit==="NT"?null:contract.suit;
+      const spokenTrump=spokenSuit(contract.suit);
+      log(`You bid ${v} ${contract.suit}.`);
+      dealerSay(`Player bids ${v} ${spokenTrump}.`,0);
+      dealerSay("CPU passes.",700);
+      dealerSay(`Trump is ${spokenTrump}.`,1350);
+    }
+    phase="play";$("bidbox").style.display="none";render();cpuTurn();
+  }
+  function commitHumanPlay(c){
+    hand.splice(hand.indexOf(c),1);
+    trick.push({p:0,c});
+    crowdReactionForCard(c);
+    dealerSay(cardName(c)+"!",420);
+    render();
+    advance();
+  }
+  async function play(c,sourceEl=null){
+    if(phase!=="play"||current!==0||!legal(c)||isAnimatingPlay)return;
+    const actualEl=sourceEl || findHandCardElement(c);
+    if(actualEl){
+      isAnimatingPlay=true;
+      try{
+        await animateCardPlay(c,actualEl);
+      }finally{
+        isAnimatingPlay=false;
+      }
+    }
+    if(phase!=="play"||current!==0)return;
+    if(!hand.includes(c))return;
+    commitHumanPlay(c);
+  }
+  function strength(c,lead){
+    if(c.r==="Joker")return 1000;
+    const v=ranks.indexOf(c.r);
+    if(trump&&c.s===trump)return 500+v+(c.r==="J"?20:0);
+    if(c.s===lead)return 200+v;
+    return v;
+  }
+  function advance(){
+    if(trick.length===2){setTimeout(resolveTrick,450);return}
+    current=1;render();cpuTurn();
+  }
+  function cpuTurn(){
+    if(phase!=="play"||current!==1)return;
+    setTimeout(()=>{
+      const choices=cpu.filter(c=>{
+        if(!trick.length)return true;
+        const lead=trick[0].c.s;
+        return c.r==="Joker"||c.s===lead||!cpu.some(x=>x.s===lead);
+      });
+      const c=choices[Math.floor(Math.random()*choices.length)];
+      if(!c){
+        current=0;
+        render();
+        return;
+      }
+      cpu.splice(cpu.indexOf(c),1);
+      trick.push({p:1,c});
+      crowdReactionForCard(c);
+      dealerSay(cardName(c)+"!",420);
+
+      // If CPU is responding to your card, the trick is complete.
+      // If CPU is leading a new trick, hand control back to the human.
+      if(trick.length===2){
+        render();
+        resolveTrick();
+      }else{
+        current=0;
+        render();
+      }
+    },500);
+  }
+  function showResult(winner,onDone){
+    const human=winner===0;
+    $("resultTitle").textContent=human?"YOU WIN THE TRICK":"CPU WINS THE TRICK";
+    $("resultDetail").textContent=human?"You take the trick.":"CPU takes the trick.";
+    $("resultAnimals").textContent=human?"🐶 🃏 🐶":"🐱 🃏 🐱";
+    $("resultAnimals").style.filter=human?"hue-rotate(165deg) saturate(1.5)":"hue-rotate(315deg) saturate(2)";
+    $("trickResult").classList.add("show");
+    $("trickResult").setAttribute("aria-hidden","false");
+    setTimeout(()=>{
+      $("trickResult").classList.remove("show");
+      $("trickResult").setAttribute("aria-hidden","true");
+      if(typeof onDone==="function") onDone();
+    },3200);
+  }
+  function resolveTrick(){
+    if(trick.length<2)return;
+    const lead=trick[0].c.s;
+    const w=strength(trick[0].c,lead)>=strength(trick[1].c,lead)?trick[0]:trick[1];
+    tricks[w.p]++;
+    log((w.p===0?"You":"CPU")+" win the trick.");
+    if(w.p===0) playHumanCrowd("cheer",1.0);
+    else playHumanCrowd("subdued",.48);
+    dealerSay(w.p===0?"Player wins the trick!":"CPU wins the trick!",900);
+
+    trick=[];
+    current=w.p;
+
+    // Hold the cat/dog result screen before advancing to the next trick.
+    showResult(w.p,()=>{
+      if(!hand.length){
+        finish();
+        return;
+      }
+
+      // Alternate dealer gender between tricks.
+      // The just-finished trick keeps its existing voice; the next trick gets the other one.
+      toggleDealerVoiceForNextTrick();
+
+      render();
+      if(current===1) cpuTurn();
+    });
+  }
+  function finish(){
+    const ours=tricks[0],theirs=tricks[1];
+    if(contract.by===0){
+      if(ours>=contract.level){scores[0]+=contract.level*10;log(`Contract made: +${contract.level*10}.`)}
+      else{scores[0]-=contract.level*10;log(`Contract failed: -${contract.level*10}.`)}
+    }else{
+      if(theirs>=contract.level){scores[1]+=contract.level*10;log("CPU makes its contract.")}
+      else{scores[1]-=contract.level*10;log("CPU fails its contract.")}
+    }
+    phase="done";$("newHand").disabled=false;render();
+  }
+
+  $("musicVolume").addEventListener("input",e=>setMixerValue("music",e.target.value));
+  $("track1File").addEventListener("change",e=>{
+    const file=e.target.files&&e.target.files[0];
+    if(file) loadTrack1Audio(file);
+  });
+  $("track1PlayBtn").addEventListener("click",toggleTrack1);
+  $("track2File").addEventListener("change",e=>{
+    const file=e.target.files&&e.target.files[0];
+    if(file) loadTrack2Audio(file);
+  });
+  $("track2PlayBtn").addEventListener("click",toggleTrack2);
+  $("track3File").addEventListener("change",e=>{
+    const file=e.target.files&&e.target.files[0];
+    if(file) loadTrack3Audio(file);
+  });
+  $("track3PlayBtn").addEventListener("click",toggleTrack3);
+  $("crowdVolume").addEventListener("input",e=>setMixerValue("crowd",e.target.value));
+  $("dealerVolume").addEventListener("input",e=>setMixerValue("dealer",e.target.value));
+
+  $("soundMixerToggle").addEventListener("click",e=>{
+    e.stopPropagation();
+    const mixer=$("soundMixer");
+    const collapsed=mixer.classList.toggle("collapsed");
+    const btn=$("soundMixerToggle");
+    btn.textContent=collapsed?"Show Audio Mix":"Hide Audio Mix";
+    btn.setAttribute("aria-expanded",collapsed?"false":"true");
+  });
+
+  $("soundToggle").addEventListener("click",()=>{
+    if(!audioCtx && soundMuted){
+      soundMuted=false;
+      ensureAudio();
+      setSoundMuted(false);
+      return;
+    }
+    if(!audioCtx) ensureAudio();
+    setSoundMuted(!soundMuted);
+  });
+  $("deal").addEventListener("click",deal);
+  $("newHand").addEventListener("click",deal);
+  $("bidBtn").addEventListener("click",submitBid);
+  $("passBtn").addEventListener("click",()=>{$("bid").value="pass";submitBid()});
+  document.querySelectorAll("[data-bid]").forEach(b=>b.addEventListener("click",()=>{$("bid").value=b.dataset.bid}));
+  $("prevTrump").addEventListener("click",()=>{const s=$("suit");s.selectedIndex=(s.selectedIndex+s.options.length-1)%s.options.length});
+  $("nextTrump").addEventListener("click",()=>{const s=$("suit");s.selectedIndex=(s.selectedIndex+1)%s.options.length});
+  $("helpBtn").addEventListener("click",()=>{
+    const p=$("controlsPanel"),hidden=p.style.display==="none";
+    p.style.display=hidden?"block":"none";
+    const btn=$("helpBtn");
+    btn.textContent=hidden?"Hide Help":"Show Help";
+    btn.setAttribute("aria-expanded",hidden?"true":"false");
+  });
+
+  viewport.addEventListener("pointerdown",ensureAudio,{passive:true});
+  document.addEventListener("keydown",ensureAudio,{passive:true});
+
+  viewport.addEventListener("mousemove",e=>{
+    lastPointerX=e.clientX;
+    lastPointerY=e.clientY;
+
+    const overPanel=!!e.target.closest?.(".panel");
+    document.body.classList.toggle("use-system-panel-cursor",overPanel);
+
+    if(!cursorLocked && !overPanel){
+      showHandCursor();
+      setHandPose("point");
+      placeHandAt(lastPointerX,lastPointerY,0);
+    }
+  });
+  viewport.addEventListener("mouseenter",()=>{
+    showHandCursor();
+    if(!cursorLocked) placeHandAt(lastPointerX,lastPointerY,0);
+  });
+  viewport.addEventListener("mouseleave",()=>{
+    document.body.classList.remove("use-system-panel-cursor");
+    if(!cursorLocked) handCursor().classList.remove("visible");
+  });
+
+  document.addEventListener("keydown",e=>{
+    if(["SELECT","OPTION","INPUT"].includes(document.activeElement?.tagName))return;
+    const k=e.key.toLowerCase();
+    if(k==="d"&&(phase==="idle"||phase==="done"))return deal();
+    if(k==="h")return $("helpBtn").click();
+    if(k==="m")return $("soundToggle").click();
+    if(phase==="bidding"){
+      if(k==="p"){ $("bid").value="pass";return submitBid() }
+      if(["6","7","8","9"].includes(k)||k==="0"){$("bid").value=k==="0"?"10":k;return}
+      if(k==="arrowleft")return $("prevTrump").click();
+      if(k==="arrowright")return $("nextTrump").click();
+      if(k==="enter")return submitBid();
+    }
+    if(phase==="play"&&current===0){
+      const m={"1":0,"2":1,"3":2,"4":3,"5":4,"6":5,"7":6,"8":7,"9":8,"0":9};
+      if(m[k]!==undefined){
+        const c=hand.slice().sort(sortCards)[m[k]];
+        if(c&&legal(c))play(c);
+      }
+    }
+  });
+
+  setMixerValue("music",$("musicVolume").value);
+  setMixerValue("crowd",$("crowdVolume").value);
+  setMixerValue("dealer",$("dealerVolume").value);
+  render();
+  placeHandAt(lastPointerX,lastPointerY,0);
+  showHandCursor();
+})();
+</script>
+</body>
+</html>
