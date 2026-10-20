@@ -2,6 +2,14 @@
 
 Native PlayStation 2 implementation of the card game **500 (Five Hundred)**, built with PS2DEV/PS2SDK and gsKit. This repository contains the restored source for the current **501B — HIRES CARD GLYPHS** build together with the reproducible PS2 ELF.
 
+## Original web-browser version
+
+The 500 Card Game began as a playable **web-browser implementation** written in HTML, CSS and JavaScript. 
+This original browser game provided the foundation for developing the native PlayStation 2 version in this repository. 
+The PS2 edition was subsequently adapted and expanded for PS2 hardware, rather than being a browser runtime.
+The preserved browser version is available here: https://github.com/khant735/500-Card-Game-PS2/tree/main/web-browser, 
+Open one of the HTML files locally in a modern browser.
+
 **Target Renders:**
 <img width="810" height="540" alt="501B_In_Play" src="https://github.com/user-attachments/assets/13296653-e9f0-4572-ac86-dd0936afaa72" />
 <img width="810" height="540" alt="501B_Card_Presentation" src="https://github.com/user-attachments/assets/c557b448-56d7-47b5-bfe2-50093eaa031f" />
@@ -11,12 +19,6 @@ Native PlayStation 2 implementation of the card game **500 (Five Hundred)**, bui
 <img width="2048" height="976" alt="501B_actual_gameplay_01" src="https://github.com/user-attachments/assets/01b40dea-ce47-4f5f-aa58-724dd26977cf" />
 <img width="2048" height="870" alt="501B_actual_gameplay_03" src="https://github.com/user-attachments/assets/54148a12-2d83-434e-8e93-9ac94a6f8d9d" />
 <img width="2048" height="932" alt="501B_actual_gameplay_02" src="https://github.com/user-attachments/assets/c47ffb29-c808-4152-8e61-3d1d70671a09" />
-
-## Original web-browser version
-
-The 500 Card Game began as a playable **web-browser implementation** written in HTML, CSS and JavaScript. This original browser game provided the foundation for developing the native PlayStation 2 version in this repository. The PS2 edition was subsequently adapted and expanded for PS2 hardware, rather than being a browser runtime.
-
-The preserved browser version is [`web-browser/500_card_game_memory_optimized.html`](web-browser/500_card_game_memory_optimized.html), a memory-optimised HTML snapshot dated **1 September 2026**. Open the HTML file locally in a modern browser to run the archived version; it is separate from the PS2 `.ELF` executable.
 
 ## Current verified build
 
