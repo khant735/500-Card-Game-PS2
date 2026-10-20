@@ -12,6 +12,12 @@ Native PlayStation 2 implementation of the card game **500 (Five Hundred)**, bui
 <img width="2048" height="870" alt="501B_actual_gameplay_03" src="https://github.com/user-attachments/assets/54148a12-2d83-434e-8e93-9ac94a6f8d9d" />
 <img width="2048" height="932" alt="501B_actual_gameplay_02" src="https://github.com/user-attachments/assets/c47ffb29-c808-4152-8e61-3d1d70671a09" />
 
+## Original web-browser version
+
+The 500 Card Game began as a playable **web-browser implementation** written in HTML, CSS and JavaScript. This original browser game provided the foundation for developing the native PlayStation 2 version in this repository. The PS2 edition was subsequently adapted and expanded for PS2 hardware, rather than being a browser runtime.
+
+The preserved browser version is [`web-browser/500_card_game_memory_optimized.html`](web-browser/500_card_game_memory_optimized.html), a memory-optimised HTML snapshot dated **1 September 2026**. Open the HTML file locally in a modern browser to run the archived version; it is separate from the PS2 `.ELF` executable.
+
 ## Current verified build
 
 - Build: **501B — HIRES CARD GLYPHS**
