@@ -1,0 +1,235 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>500 — Casino Edition</title>
+<style>
+:root{
+  --felt:#06482e;--felt2:#032f20;--gold:#d9b65a;--gold2:#f3d98b;
+  --panel:rgba(8,10,10,.88);--line:rgba(217,182,90,.65);--cream:#f7f0df;
+}
+*{box-sizing:border-box}
+html,body{min-height:100%;margin:0}
+body{
+  color:#f8f3e8;font-family:Georgia,"Times New Roman",serif;
+  background:#080b09 url("500_casino_reference.png") center top/cover fixed no-repeat;
+}
+body:before{content:"";position:fixed;inset:0;background:rgba(0,12,8,.34);pointer-events:none;z-index:-1}
+button,select{font:inherit}
+.game{width:min(1500px,96vw);margin:auto;padding:18px 0 28px}
+.header{text-align:center;margin-bottom:12px}
+.logo{display:inline-block;padding:8px 28px;border:1px solid var(--line);border-radius:14px;background:linear-gradient(#1118,#050706e8);box-shadow:0 5px 20px #0009}
+h1{margin:0;color:var(--gold2);font-size:clamp(2.2rem,5vw,4.2rem);letter-spacing:.12em;text-shadow:0 2px 4px #000}
+.subtitle{font-family:system-ui,sans-serif;letter-spacing:.18em;font-size:.75rem;color:#ddd}
+.grid{display:grid;grid-template-columns:240px 1fr 240px;gap:14px;align-items:stretch}
+.panel{background:linear-gradient(145deg,rgba(15,16,15,.97),rgba(2,3,3,.95));border:1px solid var(--line);border-radius:12px;box-shadow:0 8px 28px #000b, inset 0 0 0 1px #fff1;padding:15px}
+.panel h2{font-size:1rem;color:var(--gold2);text-align:center;margin:0 0 12px;padding-bottom:8px;border-bottom:1px solid #a7863d66}
+.score{text-align:center}.score .you{color:#6ecbff}.score .cpu{color:#ff7777}
+.score strong{display:block;font-size:2rem;margin-top:4px}
+.log{height:270px;overflow:auto;font:13px/1.45 system-ui,sans-serif;color:#ddd}
+.log div{padding:3px 0;border-bottom:1px solid #fff1}
+.table{min-height:680px;position:relative;overflow:hidden;border-radius:28px;padding:18px;
+ background:
+ radial-gradient(ellipse at center,rgba(9,91,57,.96) 0,rgba(3,48,32,.97) 78%),
+ url("500_casino_reference.png") center/cover;border:5px solid #2a2118;box-shadow:0 18px 45px #000c,inset 0 0 0 3px #b9964d55,inset 0 0 80px #0007}
+.table:before{content:"";position:absolute;inset:18px;border:2px solid #b9964d88;border-radius:24px;pointer-events:none}
+.emblem{position:absolute;left:50%;top:50%;transform:translate(-50%,-58%);font-size:clamp(4rem,9vw,8rem);font-weight:bold;letter-spacing:.1em;color:#c6a65d2c;text-align:center;white-space:nowrap}
+.emblem small{display:block;font-size:.25em;letter-spacing:.35em;margin-top:-12px}
+.status{position:relative;z-index:2;text-align:center;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:10px;margin:auto;width:min(440px,90%);box-shadow:0 6px 16px #0008}
+.status b{color:var(--gold2)}
+.opponent,.player{position:absolute;left:50%;transform:translateX(-50%);width:min(800px,92%);z-index:3}
+.opponent{top:78px}.player{bottom:18px}
+.seatlabel{text-align:center;background:var(--panel);border:1px solid var(--line);border-radius:9px;padding:6px 12px;width:max-content;margin:6px auto;font-weight:bold}
+.hand,.backs{display:flex;justify-content:center;align-items:flex-end;gap:5px;min-height:136px}
+.card{
+ width:74px;height:112px;border:1px solid #c9c0ad;border-radius:8px;background:
+ linear-gradient(135deg,#fffdf7 0,#eee6d4 48%,#fffdf7 100%);
+ color:#171717;padding:6px;display:flex;flex-direction:column;justify-content:space-between;
+ box-shadow:0 6px 13px #0009;position:relative;user-select:none;flex:0 0 auto;
+}
+.card:after{content:"";position:absolute;inset:4px;border:1px solid #0002;border-radius:5px;pointer-events:none}
+.card.red{color:#a32124}.rank{font-weight:bold;font-size:1.05rem;z-index:1}.suit{font-size:2rem;text-align:center;z-index:1}.bottom{text-align:right}
+.card.clickable{cursor:pointer;transition:.12s transform,.12s box-shadow}.card.clickable:hover,.card.clickable:focus{transform:translateY(-12px);box-shadow:0 15px 24px #000b;outline:2px solid var(--gold2)}
+.back{background:repeating-linear-gradient(45deg,#7d1e26 0,#7d1e26 6px,#f0d8c8 6px,#f0d8c8 8px);border:4px solid #f1e8d9;color:white;align-items:center;justify-content:center}
+.back span{font:700 10px system-ui;transform:rotate(-20deg);background:#7d1e26;padding:4px;border:1px solid #f0d8c8}
+.trick{position:absolute;left:50%;top:48%;transform:translate(-50%,-50%);display:flex;gap:12px;z-index:4;min-height:130px;align-items:center}
+.played{text-align:center;font:12px system-ui;color:#ddd}.played .card{width:70px;height:105px}
+.controls{position:relative;z-index:8;display:flex;justify-content:center;gap:8px;flex-wrap:wrap;margin-top:8px}
+button,select{border-radius:8px;border:1px solid var(--line);background:linear-gradient(#242621,#0b0d0c);color:#f7edcf;padding:10px 14px;cursor:pointer;box-shadow:0 4px 10px #0008}
+button:hover,select:hover{border-color:var(--gold2);transform:translateY(-1px)}
+button.primary{background:linear-gradient(#315b76,#0c2a3c);font-weight:bold}
+button.pass{background:linear-gradient(#712f2f,#351010)}
+button:disabled{opacity:.45;cursor:not-allowed;transform:none}
+.bidbox{display:none;text-align:center;position:relative;z-index:10;background:#070909dd;border:1px solid var(--line);padding:10px;border-radius:10px;margin:8px auto;width:max-content}
+.bidbox.show{display:block}.bidbox label{font:12px system-ui;color:#ddd}
+.help{font:13px/1.5 system-ui;color:#ddd}
+.kbd{font-family:monospace;background:#eee;color:#111;border-radius:3px;padding:1px 4px}
+.footer{margin-top:12px;text-align:center;font:12px system-ui;color:#ddd}
+@media(max-width:1000px){.grid{grid-template-columns:1fr}.left,.right{display:none}.table{min-height:680px}}
+@media(max-width:600px){.game{width:100%;padding:8px}.table{min-height:650px}.card{width:54px;height:86px;padding:4px}.suit{font-size:1.4rem}.rank{font-size:.85rem}.hand{gap:2px}.opponent{top:75px}.player{bottom:8px}.trick{top:47%}}
+</style>
+</head>
+<body>
+<div class="game">
+  <header class="header">
+    <div class="logo"><h1>500</h1><div class="subtitle">FIVE HUNDRED • CASINO TABLE</div></div>
+  </header>
+
+  <div class="grid">
+    <aside class="panel left">
+      <h2>SCORE</h2>
+      <div class="score">You <strong class="you" id="us">0</strong></div>
+      <div class="score">CPU <strong class="cpu" id="them">0</strong></div>
+      <h2 style="margin-top:20px">GAME LOG</h2>
+      <div id="log" class="log"></div>
+    </aside>
+
+    <section class="table">
+      <div class="emblem">500<small>FIVE HUNDRED</small></div>
+      <div class="status" id="message">Press DEAL to start a hand.</div>
+
+      <div class="opponent">
+        <div class="seatlabel">CPU</div>
+        <div id="cpuHand" class="backs"></div>
+      </div>
+
+      <div id="trick" class="trick"></div>
+
+      <div class="player">
+        <div class="seatlabel"><span style="color:#6ecbff">YOU</span></div>
+        <div id="hand" class="hand"></div>
+        <div id="bidbox" class="bidbox">
+          <label>Bid
+            <select id="bid"><option value="pass">Pass</option><option value="6">6</option><option value="7">7</option><option value="8">8</option><option value="9">9</option><option value="10">10</option></select>
+          </label>
+          <label>Trump
+            <select id="suit"><option value="♠">♠</option><option value="♥">♥</option><option value="♦">♦</option><option value="♣">♣</option><option value="NT">NT</option></select>
+          </label>
+          <button id="bidBtn">SUBMIT BID</button>
+        </div>
+        <div class="controls">
+          <button id="deal" class="primary" style="min-width:170px;font-size:1.05rem">DEAL <span class="kbd">D</span></button>
+          <button id="newHand" disabled>NEW HAND</button>
+          <button id="help">CONTROLS <span class="kbd">H</span></button>
+        </div>
+      </div>
+    </section>
+
+    <aside class="panel right">
+      <h2>TRUMP</h2><div id="trump" style="text-align:center;font-size:2.2rem;color:var(--gold2)">—</div>
+      <h2 style="margin-top:20px">CONTROLS</h2>
+      <div id="helpbox" class="help">
+        <b>D</b> Deal / New Hand<br>
+        <b>1–0</b> Play card<br>
+        <b>P</b> Pass during bidding<br>
+        <b>6–9 / 0</b> Choose bid<br>
+        <b>← →</b> Change trump<br>
+        <b>Enter</b> Submit bid<br>
+        <b>H</b> Show / hide controls
+      </div>
+    </aside>
+  </div>
+  <div class="footer">
+  <span>First to 500 points wins.</span>
+  <span style="margin:0 30px">•</span>
+  <span>Dealer leads.</span>
+  <span style="margin:0 30px">•</span>
+  <span>Highest trump wins the trick.</span>
+</div>
+</div>
+
+<script>
+document.addEventListener("DOMContentLoaded",()=>{
+ const suits=["♠","♥","♦","♣"], ranks=["4","5","6","7","8","9","10","J","Q","K","A"];
+ let deck=[],hands=[[],[]],scores=[0,0],phase="idle",current=0,trick=[],tricks=[0,0],contract=null,trump=null;
+ const $=id=>document.getElementById(id);
+ function log(t){const d=document.createElement("div");d.textContent=t;$("log").prepend(d)}
+ function makeDeck(){
+   deck=[];for(const s of suits)for(const r of ranks)deck.push({r,s});
+   deck.push({r:"Joker",s:"★"},{r:"Joker",s:"★"});
+   for(let i=deck.length-1;i;i--){let j=Math.floor(Math.random()*(i+1));[deck[i],deck[j]]=[deck[j],deck[i]]}
+ }
+ function deal(){
+   makeDeck();hands=[[],[]];trick=[];tricks=[0,0];contract=null;trump=null;current=0;phase="bidding";
+   for(let i=0;i<10;i++){hands[0].push(deck.pop());hands[1].push(deck.pop())}
+   $("bidbox").classList.add("show");$("deal").disabled=true;$("newHand").disabled=true;
+   log("New two-player hand dealt. You open the bidding.");render();
+ }
+ function sort(a,b){return (suits.indexOf(a.s)-suits.indexOf(b.s))||(ranks.indexOf(a.r)-ranks.indexOf(b.r))}
+ function red(s){return s==="♥"||s==="♦"}
+ function cardEl(c,click=false,i=-1){
+   const e=document.createElement(click?"button":"div");e.className="card "+(red(c.s)?"red ":"")+(click?"clickable":"");
+   e.innerHTML=`<span class="rank">${c.r}</span><span class="suit">${c.s}</span><span class="rank bottom">${i>=0?i+1:c.r}</span>`;
+   if(click){e.type="button";e.onclick=()=>play(c)} return e
+ }
+ function render(){
+   $("us").textContent=scores[0];$("them").textContent=scores[1];$("trump").textContent=trump||"—";
+   const h=$("hand");h.replaceChildren();hands[0].slice().sort(sort).forEach((c,i)=>h.append(cardEl(c,phase==="play"&&current===0&&legal(c),i)));
+   const ch=$("cpuHand");ch.replaceChildren();hands[1].forEach(()=>{const e=document.createElement("div");e.className="card back";e.innerHTML="<span>500</span>";ch.append(e)});
+   const t=$("trick");t.replaceChildren();trick.forEach(x=>{const w=document.createElement("div");w.className="played";w.append(cardEl(x.c));const s=document.createElement("div");s.textContent=x.p===0?"YOU":"CPU";w.append(s);t.append(w)});
+   $("message").textContent=phase==="idle"?"Press DEAL to start a hand.":phase==="bidding"?"Choose a bid or pass.":phase==="play"?(current===0?"Your turn — choose a card.":"CPU is thinking…"):"Hand complete.";
+ }
+ function legal(c){if(!trick.length)return true;const lead=trick[0].c.s;if(c.r==="Joker"||c.s===lead)return true;return !hands[0].some(x=>x.s===lead)}
+ function bid(){
+   if(phase!=="bidding")return;
+   const v=$("bid").value;
+   if(v==="pass"){log("You pass. CPU takes the contract.");contract={level:6,suit:"♠",by:1};trump="♠"}
+   else {contract={level:+v,suit:$("suit").value,by:0};trump=contract.suit==="NT"?null:contract.suit;log(`You bid ${v} ${contract.suit}.`)}
+   phase="play";$("bidbox").classList.remove("show");render();cpuTurn()
+ }
+ function play(c){
+   if(phase!=="play"||current!==0||!legal(c))return;
+   hands[0].splice(hands[0].indexOf(c),1);trick.push({p:0,c});render();advance()
+ }
+ function strength(c,lead){
+   if(c.r==="Joker")return 1000;
+   const rv=ranks.indexOf(c.r);
+   if(trump&&c.s===trump)return 500+rv+(c.r==="J"?20:0);
+   if(c.s===lead)return 200+rv;
+   return rv
+ }
+ function advance(){
+   if(trick.length===2){setTimeout(resolve,450);return}
+   current=1;render();cpuTurn()
+ }
+ function cpuTurn(){
+   if(phase!=="play"||current!==1)return;
+   setTimeout(()=>{
+     const choices=hands[1].filter(c=>{if(!trick.length)return true;const lead=trick[0].c.s;return c.r==="Joker"||c.s===lead||!hands[1].some(x=>x.s===lead)});
+     const c=choices[Math.floor(Math.random()*choices.length)];
+     hands[1].splice(hands[1].indexOf(c),1);trick.push({p:1,c});render();resolve()
+   },500)
+ }
+ function resolve(){
+   if(trick.length<2){current=0;render();return}
+   const lead=trick[0].c.s,w=strength(trick[0].c,lead)>=strength(trick[1].c,lead)?trick[0]:trick[1];
+   tricks[w.p]++;log(`${w.p===0?"You":"CPU"} win the trick.`);trick=[];current=w.p;
+   if(!hands[0].length){finish();return} render();if(current===1)cpuTurn()
+ }
+ function finish(){
+   const ours=tricks[0],theirs=tricks[1];
+   if(contract.by===0){if(ours>=contract.level){scores[0]+=contract.level*10;log(`Contract made: +${contract.level*10}.`)}else{scores[0]-=contract.level*10;log(`Contract failed: -${contract.level*10}.`)}}else{if(theirs>=contract.level){scores[1]+=contract.level*10;log(`CPU makes its contract.`)}else{scores[1]-=contract.level*10;log(`CPU fails its contract.`)}}
+   phase="done";$("newHand").disabled=false;render()
+ }
+ $("deal").onclick=deal;$("newHand").onclick=deal;$("bidBtn").onclick=bid;
+ $("help").onclick=()=>{$("helpbox").style.display=$("helpbox").style.display==="none"?"block":"none"};
+ document.addEventListener("keydown",e=>{
+   const k=e.key.toLowerCase();
+   if(k==="h")$("helpbox").style.display=$("helpbox").style.display==="none"?"block":"none";
+   if(k==="d"&&(phase==="idle"||phase==="done"))deal();
+   if(phase==="bidding"){
+     if(k==="p"){$("bid").value="pass";bid()}
+     else if({"6":1,"7":1,"8":1,"9":1,"0":1}[k])$("bid").value=k==="0"?"10":k;
+     else if(k==="arrowleft"||k==="arrowright"){const s=$("suit");s.selectedIndex=(s.selectedIndex+(k==="arrowright"?1:-1)+5)%5}
+     else if(k==="enter")bid();
+   } else if(phase==="play"&&current===0){
+     const m={"1":0,"2":1,"3":2,"4":3,"5":4,"6":5,"7":6,"8":7,"9":8,"0":9};
+     if(m[k]!==undefined){const c=hands[0].slice().sort(sort)[m[k]];if(c&&legal(c))play(c)}
+   }
+ });
+ render()
+});
+</script>
+</body>
+</html>
