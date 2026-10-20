@@ -998,3 +998,793 @@ html body.use-system-panel-cursor #viewport .panel *{
     {url:null,fileName:"",loaded:false},
     {url:null,fileName:"",loaded:false}
   ];
+  let playlistPlayer=null,activePlaylistTrack=-1;
+
+  function makeAudio(){
+    const a=new Audio();
+    a.preload="none";
+    a.playsInline=true;
+    return a;
+  }
+
+  function getCrowdChannel(index){
+    if(!crowdChannels[index]) crowdChannels[index]=makeAudio();
+    return crowdChannels[index];
+  }
+
+  function pickCrowdSource(kind){
+    const bank=CROWD_SOURCES[kind]||[];
+    if(!bank.length) return "";
+    let idx=Math.floor(Math.random()*bank.length);
+    if(bank.length>1){
+      const last=kind==="cheer"?lastCheerIndex:lastSubduedIndex;
+      if(idx===last) idx=(idx+1)%bank.length;
+    }
+    if(kind==="cheer") lastCheerIndex=idx;
+    else lastSubduedIndex=idx;
+    return bank[idx];
+  }
+
+  function playHumanCrowd(kind,volume=.9){
+    if(soundMuted) return;
+    const src=pickCrowdSource(kind);
+    if(!src) return;
+
+    const a=getCrowdChannel(crowdChannelCursor++%crowdChannels.length);
+    a.pause();
+    a.src=src;
+    a.currentTime=0;
+    a.playbackRate=kind==="cheer"?.98+Math.random()*.04:.99+Math.random()*.02;
+    a._reactionLevel=Math.min(1,volume*(.9+Math.random()*.1));
+    a.volume=Math.min(1,crowdVolume*a._reactionLevel);
+    a.muted=false;
+    a.play().catch(()=>{});
+  }
+
+  function crowdCheer(){playHumanCrowd("cheer",.94)}
+  function crowdSubdued(){playHumanCrowd("subdued",.42)}
+
+  function primeAudio(){
+    if(audioPrimed||soundMuted) return;
+    audioPrimed=true;
+    const a=getCrowdChannel(0);
+    a.src=CROWD_SOURCES.cheer[0];
+    a.volume=0;
+    const p=a.play();
+    if(p&&typeof p.then==="function"){
+      p.then(()=>{
+        a.pause();
+        a.removeAttribute("src");
+        a.load();
+        a.volume=crowdVolume;
+      }).catch(()=>{});
+    }
+  }
+
+  function cardName(c){
+    if(!c) return "";
+    if(c.r==="Joker") return "Joker";
+    const rankNames={J:"Jack",Q:"Queen",K:"King",A:"Ace"};
+    const suitNames={"♠":"Spades","♥":"Hearts","♦":"Diamonds","♣":"Clubs"};
+    return `${rankNames[c.r]||c.r} of ${suitNames[c.s]||c.s}`;
+  }
+
+  function spokenSuit(s){
+    const suitNames={"♠":"Spades","♥":"Hearts","♦":"Diamonds","♣":"Clubs","NT":"No Trumps"};
+    return suitNames[s]||String(s||"No Trump");
+  }
+
+  function pickDealerVoice(gender){
+    if(!("speechSynthesis" in window)) return null;
+
+    const voices=speechSynthesis.getVoices();
+    if(!voices.length) return null;
+
+    const english=voices.filter(v=>/^en/i.test(v.lang||""));
+    const pool=english.length?english:voices;
+
+    const maleNames=/daniel|george|david|james|thomas|fred|arthur|ryan|oliver|alex|guy|male/i;
+    const femaleNames=/samantha|karen|moira|serena|sonia|libby|ava|victoria|fiona|female|zira|hazel|susan/i;
+    const wanted=gender==="female"?femaleNames:maleNames;
+    const opposite=gender==="female"?maleNames:femaleNames;
+
+    const scored=pool.map((v,index)=>{
+      const name=v.name||"";
+      const lang=v.lang||"";
+      let score=0;
+
+      if(wanted.test(name)) score+=30;
+      if(opposite.test(name)) score-=18;
+      if(/natural|neural|premium|enhanced|online/i.test(name)) score+=10;
+      if(/google|microsoft|apple/i.test(name)) score+=5;
+      if(/^en-GB/i.test(lang)) score+=5;
+      else if(/^en-AU/i.test(lang)) score+=3;
+      else if(/^en-US/i.test(lang)) score+=2;
+      if(/espeak|festival|flite|pico/i.test(name)) score-=25;
+
+      return {voice:v,score,index};
+    }).sort((a,b)=>b.score-a.score || a.index-b.index);
+
+    // If the platform exposes recognizably gendered voices, use the best match.
+    const clearMatch=scored.find(x=>wanted.test(x.voice.name||""));
+    if(clearMatch) return clearMatch.voice;
+
+    // Otherwise deliberately choose different voices for male/female rotation
+    // when at least two English voices are available.
+    if(scored.length>1){
+      return gender==="female" ? scored[1].voice : scored[0].voice;
+    }
+
+    return scored[0]?.voice||pool[0]||null;
+  }
+
+  function toggleDealerVoiceForNextTrick(){
+    dealerVoiceGender=dealerVoiceGender==="male"?"female":"male";
+  }
+
+  function dealerSay(text,delay=0){
+    if(soundMuted||!("speechSynthesis" in window)) return;
+
+    window.setTimeout(()=>{
+      if(soundMuted) return;
+
+      const u=new SpeechSynthesisUtterance(text);
+      const preferred=pickDealerVoice(dealerVoiceGender);
+
+      if(preferred) u.voice=preferred;
+      u.volume=dealerVolume;
+      u.rate=dealerVoiceGender==="female"?1.04:1.06;
+      u.pitch=dealerVoiceGender==="female"?1.08:.78;
+      speechSynthesis.speak(u);
+    },delay);
+  }
+
+  function crowdReactionForCard(c){
+    if(!c) return;
+    const high=["10","J","Q","K","A"];
+    const impressive=c.r==="Joker" || (trump&&c.s===trump) || high.includes(c.r);
+
+    // Routine cards get silence. Only notable plays earn a brief audience response.
+    if(impressive && Math.random()<.42){
+      playHumanCrowd("cheer",.52);
+    }
+  }
+
+
+  function playlistLabel(index){return $(`track${index+1}LoadedLabel`)}
+  function playlistButton(index){return $(`track${index+1}PlayBtn`)}
+
+  function setPlaylistStatus(index,text){
+    const el=playlistLabel(index);
+    if(el) el.textContent=text;
+  }
+
+  function ensurePlaylistPlayer(){
+    if(playlistPlayer) return playlistPlayer;
+    playlistPlayer=makeAudio();
+    playlistPlayer.preload="metadata";
+    playlistPlayer.volume=musicVolume;
+
+    playlistPlayer.addEventListener("play",()=>{
+      if(activePlaylistTrack<0) return;
+      playlistButton(activePlaylistTrack).textContent=`Pause Track ${activePlaylistTrack+1}`;
+      setPlaylistStatus(activePlaylistTrack,"Playing");
+    });
+    playlistPlayer.addEventListener("pause",()=>{
+      if(activePlaylistTrack<0||playlistPlayer.ended) return;
+      playlistButton(activePlaylistTrack).textContent=`Play Track ${activePlaylistTrack+1}`;
+      setPlaylistStatus(activePlaylistTrack,"Loaded");
+    });
+    playlistPlayer.addEventListener("ended",()=>{
+      if(activePlaylistTrack<0) return;
+      playlistButton(activePlaylistTrack).textContent=`Play Track ${activePlaylistTrack+1}`;
+      setPlaylistStatus(activePlaylistTrack,"Finished");
+    });
+    playlistPlayer.addEventListener("error",()=>{
+      if(activePlaylistTrack>=0) setPlaylistStatus(activePlaylistTrack,"Unsupported audio file");
+    });
+    return playlistPlayer;
+  }
+
+  function loadPlaylistTrack(index,file){
+    const track=playlistTracks[index];
+    if(!file||!track) return;
+
+    if(activePlaylistTrack===index&&playlistPlayer){
+      playlistPlayer.pause();
+      activePlaylistTrack=-1;
+    }
+    if(track.url) URL.revokeObjectURL(track.url);
+
+    track.url=URL.createObjectURL(file);
+    track.fileName=file.name;
+    track.loaded=true;
+
+    setPlaylistStatus(index,file.name);
+    const btn=playlistButton(index);
+    btn.disabled=false;
+    btn.textContent=`Play Track ${index+1}`;
+  }
+
+  function togglePlaylistTrack(index){
+    const track=playlistTracks[index];
+    if(!track?.loaded) return;
+
+    const player=ensurePlaylistPlayer();
+    if(activePlaylistTrack===index&&!player.paused){
+      player.pause();
+      return;
+    }
+
+    if(activePlaylistTrack>=0&&activePlaylistTrack!==index){
+      playlistButton(activePlaylistTrack).textContent=`Play Track ${activePlaylistTrack+1}`;
+      setPlaylistStatus(activePlaylistTrack,"Loaded");
+    }
+
+    activePlaylistTrack=index;
+    if(player.src!==track.url) player.src=track.url;
+    player.volume=musicVolume;
+    player.muted=soundMuted;
+
+    if(soundMuted){
+      setPlaylistStatus(index,"Turn Sound On first");
+      return;
+    }
+    player.play().catch(()=>setPlaylistStatus(index,"Press Play again"));
+  }
+
+  function setMixerValue(kind,value){
+    const v=Math.max(0,Math.min(100,Number(value)||0)),n=v/100;
+    if(kind==="music"){
+      musicVolume=n;
+      $("musicVolumeValue").textContent=Math.round(v)+"%";
+      if(playlistPlayer) playlistPlayer.volume=musicVolume;
+    }else if(kind==="crowd"){
+      crowdVolume=n;
+      $("crowdVolumeValue").textContent=Math.round(v)+"%";
+      crowdChannels.forEach(a=>{
+        if(a) a.volume=Math.min(1,crowdVolume*(a._reactionLevel||1));
+      });
+    }else if(kind==="dealer"){
+      dealerVolume=n;
+      $("dealerVolumeValue").textContent=Math.round(v)+"%";
+    }
+  }
+
+  function setSoundMuted(muted){
+    soundMuted=!!muted;
+    if(playlistPlayer){
+      playlistPlayer.muted=soundMuted;
+      if(!soundMuted) playlistPlayer.volume=musicVolume;
+    }
+    crowdChannels.forEach(a=>{
+      if(!a) return;
+      a.muted=soundMuted;
+      if(soundMuted){
+        a.pause();
+        a.currentTime=0;
+      }
+    });
+    if(soundMuted&&"speechSynthesis" in window) speechSynthesis.cancel();
+    $("soundToggle").textContent=soundMuted?"SOUND OFF":"SOUND ON";
+  }
+  // ------------------------------------------------------
+
+  function log(text){
+    const d=document.createElement("div");d.textContent=text;$("log").prepend(d);
+    while($("log").children.length>7)$("log").lastElementChild.remove();
+  }
+  function makeDeck(){
+    deck=[];
+    nextCardId=1;
+    for(const s of suits)for(const r of ranks)deck.push({r,s,id:nextCardId++});
+    deck.push({r:"Joker",s:"★",id:nextCardId++},{r:"Joker",s:"★",id:nextCardId++});
+    for(let i=deck.length-1;i>0;i--){
+      const j=Math.floor(Math.random()*(i+1));
+      [deck[i],deck[j]]=[deck[j],deck[i]];
+    }
+  }
+  function deal(){
+    dealerVoiceGender="male";
+    primeAudio();
+    makeDeck();hand=[];cpu=[];trick=[];tricks=[0,0];contract=null;trump=null;trickStake=0;lastChipTransfer=0;current=0;phase="bidding";
+    for(let i=0;i<10;i++){hand.push(deck.pop());cpu.push(deck.pop())}
+    $("bidbox").style.display="block";
+    $("deal").disabled=true;$("newHand").disabled=true;
+    const currentHandNumber=handNo++;
+    $("handNo").textContent=currentHandNumber;
+    log("--- New Hand ---");log("Dealer: You");log("Choose your bid or pass.");
+    updateStakePreview();
+    render();
+    dealerSay(`Hand number ${currentHandNumber}. Bidding begins.`);
+  }
+  function sortCards(a,b){
+    if(a.r==="Joker")return 1;if(b.r==="Joker")return -1;
+    return suits.indexOf(a.s)-suits.indexOf(b.s)||ranks.indexOf(a.r)-ranks.indexOf(b.r);
+  }
+  function red(s){return s==="♥"||s==="♦"}
+  function cardEl(c,click=false,index=-1){
+    const e=document.createElement(click?"button":"div");
+    e.className="card "+(red(c.s)?"red ":"");
+    e.dataset.cardId=String(c.id ?? "");
+    e.innerHTML=`<span class="rank">${c.r}</span><span class="suit">${c.s}</span><span class="rank bottom">${index>=0?index+1:c.r}</span>`;
+    if(click){
+      e.type="button";e.title=`Play card ${index+1}`;
+      e.addEventListener("click",()=>play(c,e));
+    }
+    return e;
+  }
+  function legal(c){
+    if(!trick.length)return true;
+    const lead=trick[0].c.s;
+    if(c.r==="Joker"||c.s===lead)return true;
+    return !hand.some(x=>x.s===lead);
+  }
+  function wait(ms){ return new Promise(resolve=>setTimeout(resolve, ms)); }
+  function handCursor(){ return $("handCursor"); }
+  function setHandPose(pose){
+    const el=handCursor();
+    el.classList.remove("point","pinch");
+    el.classList.add(pose);
+  }
+  function placeHandAt(x,y,duration=0){
+    const el=handCursor();
+    const pinch=el.classList.contains("pinch");
+    const offsetX=pinch?44:39;
+    const offsetY=pinch?24:10;
+    el.style.transition=duration?`transform ${duration}ms cubic-bezier(.22,.9,.25,1), opacity .18s ease`:"opacity .18s ease";
+    el.style.transform=`translate(${x-offsetX}px,${y-offsetY}px)`;
+  }
+  function showHandCursor(){
+    const el=handCursor();
+    el.classList.add("visible");
+  }
+  function findHandCardElement(card){
+    return $("hand").querySelector(`[data-card-id="${card.id}"]`);
+  }
+  async function animateCardPlay(card, sourceEl){
+    if(!sourceEl) return;
+    const cursor=handCursor();
+    const trickBox=$("trick");
+    const cardRect=sourceEl.getBoundingClientRect();
+    const trickRect=trickBox.getBoundingClientRect();
+    const targetX=trickRect.left + trickRect.width/2 + (trick.length?34:-34);
+    const targetY=trickRect.top + trickRect.height/2 + 8;
+
+    cursorLocked=true;
+    showHandCursor();
+    setHandPose("point");
+    placeHandAt(cardRect.left + cardRect.width*.72, cardRect.top + cardRect.height*.18, 180);
+    sourceEl.classList.add("selected-by-hand");
+    await wait(240);
+
+    setHandPose("pinch");
+    placeHandAt(cardRect.left + cardRect.width*.56, cardRect.top + cardRect.height*.44, 170);
+    await wait(180);
+
+    const ghost=sourceEl.cloneNode(true);
+    ghost.classList.add("flying-card","carry");
+    ghost.style.width=`${cardRect.width}px`;
+    ghost.style.height=`${cardRect.height}px`;
+    ghost.style.left=`${cardRect.left}px`;
+    ghost.style.top=`${cardRect.top}px`;
+    ghost.style.transform="translate(0,0) rotate(0deg) scale(1)";
+    document.body.appendChild(ghost);
+
+    sourceEl.style.visibility="hidden";
+    placeHandAt(cardRect.left + cardRect.width*.56, cardRect.top + cardRect.height*.44, 0);
+    await wait(30);
+
+    ghost.style.left=`${targetX - cardRect.width*.5}px`;
+    ghost.style.top=`${targetY - cardRect.height*.5}px`;
+    ghost.style.transform="translate(0,-8px) rotate(-7deg) scale(.92)";
+    placeHandAt(targetX + 10, targetY + 8, 540);
+    await wait(570);
+
+    ghost.remove();
+    sourceEl.style.visibility="";
+    sourceEl.classList.remove("selected-by-hand");
+    cursorLocked=false;
+    setHandPose("point");
+    placeHandAt(lastPointerX,lastPointerY,120);
+  }
+
+
+  function chipStackAmounts(amount){
+    const n=Math.max(0,Math.floor(amount));
+    if(n===0) return [];
+
+    const stacks=[];
+    let remaining=n;
+
+    while(remaining>0){
+      stacks.push(Math.min(20,remaining));
+      remaining-=20;
+    }
+    return stacks;
+  }
+
+  function fillChipStack(stackId,amount){
+    const stack=$(stackId),amounts=chipStackAmounts(amount),frag=document.createDocumentFragment();
+    amounts.forEach((chipCount,index)=>{
+      const column=document.createElement("div");
+      column.className="chip-column";
+      column.style.setProperty("--chip-col",index%5);
+      column.style.setProperty("--chip-row",Math.floor(index/5));
+      column.style.setProperty("--chip-count",chipCount);
+
+      const label=document.createElement("div");
+      label.className="chip-column-label";
+      label.textContent=chipCount;
+      column.appendChild(label);
+      frag.appendChild(column);
+    });
+    stack.replaceChildren(frag);
+    return amounts;
+  }
+
+
+  function animateChipBank(bankElId,deltaElId,countElId,delta){
+    const bank=$(bankElId),deltaEl=$(deltaElId);
+    clearTimeout(bank._chipAnimTimer);
+    bank.classList.remove("gain","loss");
+    deltaEl.classList.remove("show","gain","loss");
+    void bank.offsetWidth;
+
+    if(delta>0){
+      bank.classList.add("gain");
+      deltaEl.textContent="+"+delta;
+      deltaEl.classList.add("gain","show");
+    }else if(delta<0){
+      bank.classList.add("loss");
+      deltaEl.textContent=String(delta);
+      deltaEl.classList.add("loss","show");
+    }
+
+    if(delta){
+      bank._chipAnimTimer=setTimeout(()=>{
+        bank.classList.remove("gain","loss");
+        deltaEl.classList.remove("show","gain","loss");
+      },1250);
+    }
+  }
+
+  function renderChipBanks(){
+    const humanDelta=chipBank[0]-lastRenderedChipBank[0];
+    const cpuDelta=chipBank[1]-lastRenderedChipBank[1];
+    const humanNeedsBuild=humanDelta!==0||!$("humanChipStack").childElementCount;
+    const cpuNeedsBuild=cpuDelta!==0||!$("cpuChipStack").childElementCount;
+
+    const humanStacks=humanNeedsBuild?fillChipStack("humanChipStack",chipBank[0]):chipStackAmounts(chipBank[0]);
+    const cpuStacks=cpuNeedsBuild?fillChipStack("cpuChipStack",chipBank[1]):chipStackAmounts(chipBank[1]);
+
+    if(humanNeedsBuild){
+      $("humanChipCount").textContent=chipBank[0];
+      $("humanChipBreakdown").textContent=humanStacks.length?humanStacks.join(" + "):"No chips";
+    }
+    if(cpuNeedsBuild){
+      $("cpuChipCount").textContent=chipBank[1];
+      $("cpuChipBreakdown").textContent=cpuStacks.length?cpuStacks.join(" + "):"No chips";
+    }
+
+    const stakeText=trickStake>0?`${trickStake} chips / trick`:"Bankroll";
+    if($("humanChipSub").textContent!==stakeText) $("humanChipSub").textContent=stakeText;
+    if($("cpuChipSub").textContent!==stakeText) $("cpuChipSub").textContent=stakeText;
+
+    if(humanDelta) animateChipBank("humanChipBank","humanChipDelta","humanChipCount",humanDelta);
+    if(cpuDelta) animateChipBank("cpuChipBank","cpuChipDelta","cpuChipCount",cpuDelta);
+    lastRenderedChipBank=[chipBank[0],chipBank[1]];
+  }
+
+  function selectedStakePreview(){
+    const bid=$("bid");
+    if(!bid) return 6;
+    return bid.value==="pass" ? 6 : Math.max(1,Number(bid.value)||6);
+  }
+
+  function updateStakePreview(){
+    const el=$("stakePreviewValue");
+    if(el) el.textContent=selectedStakePreview();
+  }
+
+  function settleTrickChips(winner){
+    const loser=winner===0?1:0;
+    const requested=Math.max(0,trickStake|0);
+    const paid=Math.min(requested,chipBank[loser]);
+
+    if(paid>0){
+      chipBank[loser]-=paid;
+      chipBank[winner]+=paid;
+    }
+
+    lastChipTransfer=paid;
+    renderChipBanks();
+
+    if(paid>0){
+      log(`${winner===0?"CPU":"You"} pay ${paid} chips to ${winner===0?"you":"CPU"}.`);
+    }else if(requested>0){
+      log(`${loser===0?"You have":"CPU has"} no chips left to pay.`);
+    }
+
+    return paid;
+  }
+
+  function render(){
+    renderChipBanks();
+    $("us").textContent=scores[0]+" / 500";
+    $("them").textContent=scores[1]+" / 500";
+    const names={"♠":"Spades","♥":"Hearts","♦":"Diamonds","♣":"Clubs"};
+    $("trumpName").textContent=trump==="NT"?"No Trumps":trump?names[trump]:"—";
+    $("trumpSymbol").textContent=trump==="NT"?"NT":trump||"♠";
+
+    $("hand").replaceChildren(...hand.slice().sort(sortCards).map((c,i)=>cardEl(c,phase==="play"&&current===0&&legal(c),i)));
+
+    const ch=$("cpuHand");ch.replaceChildren();
+    cpu.forEach(()=>{const e=document.createElement("div");e.className="card back";ch.append(e)});
+
+    $("trick").replaceChildren(...trick.map(t=>{
+      const w=document.createElement("div");w.className="played";
+      w.append(cardEl(t.c));
+      const label=document.createElement("div");label.textContent=t.p===0?"YOU":"CPU";w.append(label);
+      return w;
+    }));
+
+    $("status").innerHTML=
+      phase==="bidding"?'YOU <span class="state">| Your Bid</span>':
+      phase==="play"?(current===0?'YOU <span class="state" style="color:#39b9ff">| Your Turn</span>':'CPU <span class="state">| Thinking…</span>'):
+      phase==="done"?'Hand Complete':'CPU <span class="state">| Pass</span>';
+  }
+  function submitBid(){
+    if(phase!=="bidding")return;
+    const v=$("bid").value;
+    if(v==="pass"){
+      contract={level:6,suit:"♠",by:1};
+      trump="♠";
+      log("You pass. CPU takes 6 Spades.");
+      dealerSay("Player passes.",0);
+      dealerSay("CPU bids 6 Spades.",650);
+      dealerSay("Trump is Spades.",1350);
+    }else{
+      contract={level:+v,suit:$("suit").value,by:0};
+      trump=contract.suit==="NT"?null:contract.suit;
+      const spokenTrump=spokenSuit(contract.suit);
+      log(`You bid ${v} ${contract.suit}.`);
+      dealerSay(`Player bids ${v} ${spokenTrump}.`,0);
+      dealerSay("CPU passes.",700);
+      dealerSay(`Trump is ${spokenTrump}.`,1350);
+    }
+    trickStake=contract.level;
+    log(`Chip stake: ${trickStake} per trick. Loser pays winner.`);
+    phase="play";$("bidbox").style.display="none";render();cpuTurn();
+  }
+  function commitHumanPlay(c){
+    hand.splice(hand.indexOf(c),1);
+    trick.push({p:0,c});
+    crowdReactionForCard(c);
+    dealerSay(cardName(c)+"!",420);
+    render();
+    advance();
+  }
+  async function play(c,sourceEl=null){
+    if(phase!=="play"||current!==0||!legal(c)||isAnimatingPlay)return;
+    const actualEl=sourceEl || findHandCardElement(c);
+    if(actualEl){
+      isAnimatingPlay=true;
+      try{
+        await animateCardPlay(c,actualEl);
+      }finally{
+        isAnimatingPlay=false;
+      }
+    }
+    if(phase!=="play"||current!==0)return;
+    if(!hand.includes(c))return;
+    commitHumanPlay(c);
+  }
+  function strength(c,lead){
+    if(c.r==="Joker")return 1000;
+    const v=ranks.indexOf(c.r);
+    if(trump&&c.s===trump)return 500+v+(c.r==="J"?20:0);
+    if(c.s===lead)return 200+v;
+    return v;
+  }
+  function advance(){
+    if(trick.length===2){setTimeout(resolveTrick,450);return}
+    current=1;render();cpuTurn();
+  }
+  function cpuTurn(){
+    if(phase!=="play"||current!==1)return;
+    setTimeout(()=>{
+      const choices=cpu.filter(c=>{
+        if(!trick.length)return true;
+        const lead=trick[0].c.s;
+        return c.r==="Joker"||c.s===lead||!cpu.some(x=>x.s===lead);
+      });
+      const c=choices[Math.floor(Math.random()*choices.length)];
+      if(!c){
+        current=0;
+        render();
+        return;
+      }
+      cpu.splice(cpu.indexOf(c),1);
+      trick.push({p:1,c});
+      crowdReactionForCard(c);
+      dealerSay(cardName(c)+"!",420);
+
+      // If CPU is responding to your card, the trick is complete.
+      // If CPU is leading a new trick, hand control back to the human.
+      if(trick.length===2){
+        render();
+        resolveTrick();
+      }else{
+        current=0;
+        render();
+      }
+    },500);
+  }
+  function showResult(winner,chipTransfer,onDone){
+    const human=winner===0;
+    $("resultTitle").textContent=human?"YOU WIN THE TRICK":"CPU WINS THE TRICK";
+    const chipText=chipTransfer>0
+      ? `${human?"CPU pays you":"You pay CPU"} ${chipTransfer} chip${chipTransfer===1?"":"s"}.`
+      : "No chips were available to transfer.";
+    $("resultDetail").textContent=(human?"You take the trick. ":"CPU takes the trick. ")+chipText;
+    $("resultAnimals").textContent=human?"🐶 🃏 🐶":"🐱 🃏 🐱";
+    $("resultAnimals").style.filter=human?"hue-rotate(165deg) saturate(1.5)":"hue-rotate(315deg) saturate(2)";
+    $("trickResult").classList.add("show");
+    $("trickResult").setAttribute("aria-hidden","false");
+    setTimeout(()=>{
+      $("trickResult").classList.remove("show");
+      $("trickResult").setAttribute("aria-hidden","true");
+      if(typeof onDone==="function") onDone();
+    },3200);
+  }
+  function resolveTrick(){
+    if(trick.length<2)return;
+    const lead=trick[0].c.s;
+    const w=strength(trick[0].c,lead)>=strength(trick[1].c,lead)?trick[0]:trick[1];
+    tricks[w.p]++;
+    log((w.p===0?"You":"CPU")+" win the trick.");
+    const chipTransfer=settleTrickChips(w.p);
+    if(w.p===0) playHumanCrowd("cheer",1.0);
+    else playHumanCrowd("subdued",.48);
+    dealerSay(w.p===0?"Player wins the trick!":"CPU wins the trick!",900);
+    if(chipTransfer>0){
+      dealerSay(
+        w.p===0
+          ? `CPU pays player ${chipTransfer} chips.`
+          : `Player pays CPU ${chipTransfer} chips.`,
+        1650
+      );
+    }
+
+    trick=[];
+    current=w.p;
+
+    // Hold the cat/dog result screen before advancing to the next trick.
+    showResult(w.p,chipTransfer,()=>{
+      if(!hand.length){
+        finish();
+        return;
+      }
+
+      // Alternate dealer gender between tricks.
+      // The just-finished trick keeps its existing voice; the next trick gets the other one.
+      toggleDealerVoiceForNextTrick();
+
+      render();
+      if(current===1) cpuTurn();
+    });
+  }
+  function finish(){
+    const ours=tricks[0],theirs=tricks[1];
+    if(contract.by===0){
+      if(ours>=contract.level){scores[0]+=contract.level*10;log(`Contract made: +${contract.level*10}.`)}
+      else{scores[0]-=contract.level*10;log(`Contract failed: -${contract.level*10}.`)}
+    }else{
+      if(theirs>=contract.level){scores[1]+=contract.level*10;log("CPU makes its contract.")}
+      else{scores[1]-=contract.level*10;log("CPU fails its contract.")}
+    }
+    phase="done";$("newHand").disabled=false;render();
+  }
+
+  $("musicVolume").addEventListener("input",e=>setMixerValue("music",e.target.value));
+  $("crowdVolume").addEventListener("input",e=>setMixerValue("crowd",e.target.value));
+  $("dealerVolume").addEventListener("input",e=>setMixerValue("dealer",e.target.value));
+  playlistTracks.forEach((_,index)=>{
+    const n=index+1;
+    $(`track${n}File`).addEventListener("change",e=>{
+      const file=e.target.files?.[0];
+      if(file) loadPlaylistTrack(index,file);
+    });
+    $(`track${n}PlayBtn`).addEventListener("click",()=>togglePlaylistTrack(index));
+  });
+
+  $("soundMixerToggle").addEventListener("click",e=>{
+    e.stopPropagation();
+    const mixer=$("soundMixer");
+    const collapsed=mixer.classList.toggle("collapsed");
+    const btn=$("soundMixerToggle");
+    btn.textContent=collapsed?"Show Audio Mix":"Hide Audio Mix";
+    btn.setAttribute("aria-expanded",collapsed?"false":"true");
+  });
+
+  $("soundToggle").addEventListener("click",()=>setSoundMuted(!soundMuted));
+  $("deal").addEventListener("click",deal);
+  $("newHand").addEventListener("click",deal);
+  $("bidBtn").addEventListener("click",submitBid);
+  $("bid").addEventListener("change",updateStakePreview);
+  $("passBtn").addEventListener("click",()=>{$("bid").value="pass";updateStakePreview();submitBid()});
+  document.querySelectorAll("[data-bid]").forEach(b=>b.addEventListener("click",()=>{
+    $("bid").value=b.dataset.bid;
+    updateStakePreview();
+  }));
+  $("prevTrump").addEventListener("click",()=>{const s=$("suit");s.selectedIndex=(s.selectedIndex+s.options.length-1)%s.options.length});
+  $("nextTrump").addEventListener("click",()=>{const s=$("suit");s.selectedIndex=(s.selectedIndex+1)%s.options.length});
+  $("helpBtn").addEventListener("click",()=>{
+    const p=$("controlsPanel"),hidden=p.style.display==="none";
+    p.style.display=hidden?"block":"none";
+    const btn=$("helpBtn");
+    btn.textContent=hidden?"Hide Help":"Show Help";
+    btn.setAttribute("aria-expanded",hidden?"true":"false");
+  });
+
+  viewport.addEventListener("pointerdown",primeAudio,{once:true,passive:true});
+  document.addEventListener("keydown",primeAudio,{once:true,passive:true});
+
+  viewport.addEventListener("mousemove",e=>{
+    lastPointerX=e.clientX;
+    lastPointerY=e.clientY;
+
+    const overPanel=!!e.target.closest?.(".panel");
+    document.body.classList.toggle("use-system-panel-cursor",overPanel);
+
+    if(!cursorLocked && !overPanel){
+      showHandCursor();
+      setHandPose("point");
+      placeHandAt(lastPointerX,lastPointerY,0);
+    }
+  });
+  viewport.addEventListener("mouseenter",()=>{
+    showHandCursor();
+    if(!cursorLocked) placeHandAt(lastPointerX,lastPointerY,0);
+  });
+  viewport.addEventListener("mouseleave",()=>{
+    document.body.classList.remove("use-system-panel-cursor");
+    if(!cursorLocked) handCursor().classList.remove("visible");
+  });
+
+  document.addEventListener("keydown",e=>{
+    if(["SELECT","OPTION","INPUT"].includes(document.activeElement?.tagName))return;
+    const k=e.key.toLowerCase();
+    if(k==="d"&&(phase==="idle"||phase==="done"))return deal();
+    if(k==="h")return $("helpBtn").click();
+    if(k==="m")return $("soundToggle").click();
+    if(phase==="bidding"){
+      if(k==="p"){ $("bid").value="pass";return submitBid() }
+      if(["6","7","8","9"].includes(k)||k==="0"){$("bid").value=k==="0"?"10":k;return}
+      if(k==="arrowleft")return $("prevTrump").click();
+      if(k==="arrowright")return $("nextTrump").click();
+      if(k==="enter")return submitBid();
+    }
+    if(phase==="play"&&current===0){
+      const m={"1":0,"2":1,"3":2,"4":3,"5":4,"6":5,"7":6,"8":7,"9":8,"0":9};
+      if(m[k]!==undefined){
+        const c=hand.slice().sort(sortCards)[m[k]];
+        if(c&&legal(c))play(c);
+      }
+    }
+  });
+
+  setMixerValue("music",$("musicVolume").value);
+  setMixerValue("crowd",$("crowdVolume").value);
+  setMixerValue("dealer",$("dealerVolume").value);
+  updateStakePreview();
+  lastRenderedChipBank=[chipBank[0],chipBank[1]];
+  renderChipBanks();
+  render();
+  placeHandAt(lastPointerX,lastPointerY,0);
+  showHandCursor();
+})();
+</script>
+</body>
+</html>
