@@ -1,0 +1,1761 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>500 — Casino Table</title>
+<style>
+:root{
+  --felt:#0a5635;
+  --felt-dark:#04351f;
+  --gold:#c79a43;
+  --gold-light:#f0d27b;
+  --panel:#090b0a;
+  --blue:#39b9ff;
+  --red:#ff4545;
+  --paper:#f5efe2;
+}
+*{box-sizing:border-box}
+html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#000}
+body{
+  font-family:Georgia,"Times New Roman",serif;
+  color:#fff;
+  background:#17120e;
+}
+#viewport{
+  position:relative;
+  width:100vw;
+  height:100vh;
+  flex:0 0 auto;
+  overflow:hidden;
+  background:#04351f;
+}
+#game{
+  position:absolute;left:-10px;top:-10px;width:1536px;height:1024px;
+  transform-origin:top left;
+}
+.table{
+  position:absolute;inset:0;overflow:hidden;
+  background:
+    radial-gradient(ellipse at 50% 45%,#0d6b41 0%,#095635 40%,#04351f 78%,#022719 100%);
+  border:3px solid #7b5822;
+  border-radius:42px;
+  box-shadow:
+    inset 0 0 105px rgba(0,0,0,.42),
+    inset 0 0 0 2px #b48634,
+    0 10px 28px rgba(0,0,0,.45);
+}
+.table:before{
+  content:"";position:absolute;inset:50px;border:2px solid #bd9141;border-radius:50px;
+  box-shadow:inset 0 0 0 1px rgba(255,242,194,.12);pointer-events:none;
+}
+.table:after{
+  content:"";position:absolute;inset:58px;border-radius:44px;opacity:.075;pointer-events:none;
+  background-image:radial-gradient(#fff 0.65px,transparent .75px);
+  background-size:4px 4px;
+}
+
+/* Casino rail / cup holders */
+.rail{
+  position:absolute;left:8px;right:8px;top:4px;height:54px;z-index:2;
+  border-radius:36px 36px 30% 30%;
+  background:linear-gradient(#2a211b,#171411 72%,#0f0f0d);
+  border-bottom:2px solid #8f6729;
+  box-shadow:inset 0 -5px 11px rgba(0,0,0,.65);
+}
+.cup{
+  position:absolute;z-index:4;width:62px;height:62px;border-radius:50%;
+  background:
+    radial-gradient(circle,#0f0b07 0 28%,#6f4815 30% 37%,#dfac42 40% 48%,#734a15 51% 59%,#171008 63%);
+  border:2px solid #d1a13f;box-shadow:0 3px 8px #000b,inset 0 0 0 2px #5b3912;
+}
+.cup.tl{left:405px;top:18px}.cup.tr{right:405px;top:18px}
+.cup.bl{left:22px;bottom:258px}.cup.br{right:22px;bottom:258px}
+
+/* Shared panel style */
+.panel{
+  position:absolute;z-index:50;
+  background:linear-gradient(145deg,rgba(17,20,18,.98),rgba(3,5,4,.98));
+  border:2px solid #a87d30;border-radius:12px;
+  box-shadow:0 7px 18px #000c,inset 0 0 0 1px rgba(255,255,255,.08);
+}
+.panel-title{
+  color:var(--gold-light);text-align:center;font-weight:700;letter-spacing:.04em;
+  border-bottom:1px solid rgba(188,145,61,.45);
+}
+
+/* Score */
+#scoreboard{left:14px;top:14px;width:162px;height:145px}
+#scoreboard .panel-title{font-size:18px;padding:9px 8px 7px}
+.score-row{
+  display:flex;justify-content:space-between;align-items:center;
+  margin:0 10px;padding:8px 2px;border-bottom:1px solid rgba(188,145,61,.34);
+  font-size:17px;
+}
+.score-row.you{color:var(--blue)}.score-row.cpu{color:#ff4949}
+#handNoRow{text-align:center;font-size:15px;padding:8px}
+
+/* Game log */
+#gamelog{left:14px;top:171px;width:166px;height:145px}
+#gamelog .panel-title{font-size:17px;padding:8px 6px 6px}
+#log{height:108px;overflow:hidden;padding:8px 10px;font-size:13px;line-height:1.45;color:#eee}
+#log div{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+/* Trump */
+#trumpPanel{right:14px;top:14px;width:166px;height:145px;text-align:center}
+#trumpPanel .panel-title{font-size:18px;padding:9px 8px 7px}
+#trumpName{font-size:19px;margin-top:8px}
+#trumpSymbol{font-size:55px;line-height:1;color:#f2d272;text-shadow:0 3px 7px #000}
+
+/* Controls */
+#controlsPanel{right:14px;top:171px;width:188px;height:225px}
+#controlsPanel .panel-title{font-size:17px;padding:8px 6px 6px}
+#controlsText{font-size:13px;line-height:1.55;padding:9px 12px}
+#controlsText b{color:#f0d15e}
+.btn{
+  border:2px solid #a97d30;border-radius:8px;
+  background:linear-gradient(#212521,#080a09);color:#f8edcc;
+  font-family:Georgia,"Times New Roman",serif;font-weight:700;
+  cursor:pointer;box-shadow:0 3px 9px #0009,inset 0 0 0 1px #fff1;
+}
+.btn:hover{border-color:#efd37c;filter:brightness(1.12)}
+.btn:focus-visible{outline:3px solid #6ec8ff;outline-offset:2px}
+.btn:disabled{opacity:.45;cursor:not-allowed;filter:none}
+#helpBtn{
+  position:absolute;
+  right:14px;
+  top:410px;
+  width:188px;
+  height:34px;
+  z-index:70;
+  border:1px solid rgba(235,196,92,.78);
+  border-radius:8px;
+  background:linear-gradient(180deg,#3b2b18,#181108);
+  color:#f6dda0;
+  font:700 12px/1 Arial,sans-serif;
+  letter-spacing:.6px;
+  box-shadow:
+    inset 0 0 0 1px rgba(255,255,255,.04),
+    0 3px 8px rgba(0,0,0,.38);
+}
+#helpBtn:active{
+  transform:translateY(1px);
+}
+
+/* Independent sound mixer */
+#soundMixer{
+  right:14px;top:458px;width:188px;height:194px;z-index:72;
+}
+  #soundMixerToggle{
+    position:absolute;
+    right:14px;
+    top:658px;
+    width:188px;
+    height:34px;
+    z-index:73;
+    border:1px solid rgba(235,196,92,.78);
+    border-radius:8px;
+    background:linear-gradient(180deg,#3b2b18,#181108);
+    color:#f6dda0;
+    font:700 12px/1 Arial,sans-serif;
+    letter-spacing:.6px;
+    box-shadow:
+      inset 0 0 0 1px rgba(255,255,255,.04),
+      0 3px 8px rgba(0,0,0,.38);
+  }
+  #soundMixerToggle:active{
+    transform:translateY(1px);
+  }
+
+  #soundMixer{
+    transition:height .18s ease, padding-bottom .18s ease;
+    overflow:hidden;
+  }
+  #soundMixer .mixer-title-row{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:8px;
+  }
+  #soundMixer .mixer-toggle{
+    flex:0 0 auto;
+    min-width:54px;
+    height:25px;
+    padding:0 9px;
+    border:1px solid rgba(235,196,92,.72);
+    border-radius:7px;
+    background:linear-gradient(180deg,#3a2a17,#171109);
+    color:#f7dda0;
+    font:700 11px/1 Arial,sans-serif;
+    letter-spacing:.45px;
+    box-shadow:inset 0 0 0 1px rgba(255,255,255,.035),0 1px 3px rgba(0,0,0,.42);
+  }
+  #soundMixer .mixer-toggle:active{
+    transform:translateY(1px);
+  }
+  #soundMixer.collapsed{
+    display:none;
+  }
+
+#soundMixer .panel-title{font-size:16px;padding:7px 6px 5px}
+.mixer-row{padding:7px 11px 4px;border-bottom:1px solid rgba(188,145,61,.25)}
+.mixer-row:last-child{border-bottom:0}
+.mixer-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;font-size:13px}
+.mixer-head label{color:#f2dfaa;font-weight:700}
+.mixer-value{color:#58c7ff;font-family:Arial,sans-serif;font-size:12px;min-width:35px;text-align:right}
+#soundMixer input[type="range"]{
+  width:100%;height:20px;margin:0;appearance:none;-webkit-appearance:none;background:transparent;cursor:pointer;
+}
+#soundMixer input[type="range"]::-webkit-slider-runnable-track{
+  height:5px;border-radius:4px;background:linear-gradient(90deg,#6a4c1d,#d5ad58);border:1px solid #2b2110;
+}
+#soundMixer input[type="range"]::-webkit-slider-thumb{
+  appearance:none;-webkit-appearance:none;width:16px;height:16px;border-radius:50%;margin-top:-6px;
+  background:#f5df9a;border:2px solid #7b591f;box-shadow:0 2px 5px #0009;
+}
+#soundMixer input[type="range"]::-moz-range-track{
+  height:5px;border-radius:4px;background:linear-gradient(90deg,#6a4c1d,#d5ad58);border:1px solid #2b2110;
+}
+#soundMixer input[type="range"]::-moz-range-thumb{
+  width:14px;height:14px;border-radius:50%;background:#f5df9a;border:2px solid #7b591f;box-shadow:0 2px 5px #0009;
+}
+
+/* CPU status + hand */
+#status{
+  left:50%;top:12px;transform:translateX(-50%);
+  width:420px;padding:8px 14px;text-align:center;font-size:24px;
+}
+#status .state{color:#ff4a4a}
+#cpuHand{
+  position:absolute;z-index:22;left:50%;top:62px;transform:translateX(-50%);
+  width:650px;height:140px;display:flex;justify-content:center;align-items:flex-start;
+}
+
+/* Cards */
+.card{
+  position:relative;flex:0 0 auto;width:92px;height:142px;padding:7px;
+  border:1px solid #c7bda9;border-radius:9px;
+  display:flex;flex-direction:column;justify-content:space-between;
+  background:
+    radial-gradient(circle at 24% 17%,rgba(255,255,255,.78),transparent 26%),
+    repeating-linear-gradient(0deg,rgba(70,50,25,.025) 0 1px,transparent 1px 4px),
+    linear-gradient(135deg,#fffdf7,#eee5d4 52%,#fffdf8);
+  color:#111;font-family:Georgia,"Times New Roman",serif;
+  box-shadow:0 7px 15px #0009,inset 0 0 0 1px #ffffffaa;
+}
+.card:after{content:"";position:absolute;inset:4px;border:1px solid #0002;border-radius:5px;pointer-events:none}
+.card.red{color:#ad2025}
+.rank{font-size:19px;font-weight:700;z-index:2}.suit{font-size:43px;text-align:center;z-index:2}.bottom{text-align:right}
+.back{
+  width:70px;height:126px;margin-left:-22px;padding:0;
+  overflow:hidden;border:5px solid #f4eadb;
+  background:
+    radial-gradient(circle at 50% 50%,transparent 0 19px,#f1d4ba 19px 21px,transparent 21px),
+    repeating-linear-gradient(45deg,rgba(255,240,220,.20) 0 1px,transparent 1px 5px),
+    repeating-linear-gradient(-45deg,rgba(255,240,220,.12) 0 1px,transparent 1px 5px),
+    linear-gradient(135deg,#671016,#ac252d 48%,#701017);
+  box-shadow:inset 0 0 0 2px #8d1b21,inset 0 0 0 6px #eed2ba,inset 0 0 15px #250307,0 5px 12px #0008;
+}
+.back:first-child{margin-left:0}
+.back:before{
+  content:"";position:absolute;inset:7px;border:1px solid #f2d5bd;border-radius:3px;
+  background:radial-gradient(circle,#f2d5bd 0 1px,transparent 1.4px) 0 0/7px 7px;opacity:.62;
+}
+.back:after{
+  content:"500";position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);
+  width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+  font:bold 9px Georgia;color:#f6ddc4;letter-spacing:1px;
+  background:radial-gradient(circle,#9d2229 0 46%,#611017 47% 69%,#e2bfa0 70% 74%,#721018 75%);
+  border:1px solid #f0d0b7;
+}
+
+/* Gold 500 emblem */
+#emblem{
+  position:absolute;z-index:8;left:50%;top:214px;transform:translateX(-50%);
+  width:600px;height:300px;border:3px solid #bd9343;border-radius:50%;
+  text-align:center;color:#d1ab5a;
+  box-shadow:inset 0 0 0 2px #72521f,0 0 0 1px #fff1;
+  pointer-events:none;
+}
+#emblemMain{
+  font-size:120px;line-height:1;font-weight:700;letter-spacing:.06em;margin-top:38px;
+  color:#d5ac56;text-shadow:0 3px 2px #4b3517,0 0 1px #fff;
+}
+#emblemSub{display:inline-block;margin-top:7px;padding:4px 38px;font-size:25px;letter-spacing:.16em;border-top:2px solid #a97e31;border-bottom:2px solid #a97e31}
+#emblemSuits{font-size:29px;margin-top:13px}.heart,.diamond{color:#bd372e}
+
+/* Current trick centered in emblem */
+#trick{
+  position:absolute;z-index:30;left:50%;top:377px;transform:translate(-50%,-50%);
+  width:300px;height:132px;display:flex;align-items:center;justify-content:center;gap:22px;
+}
+.played{text-align:center;font:12px Arial,sans-serif;color:#eee;text-shadow:0 1px 2px #000}
+.played .card{width:80px;height:116px}.played:nth-child(1) .card{transform:rotate(-2deg)}.played:nth-child(2) .card{transform:rotate(2deg)}
+
+/* Bidding */
+#bidbox{
+  position:absolute;z-index:80;left:50%;top:512px;transform:translateX(-50%);
+  width:560px;padding:8px;background:linear-gradient(#111410,#050705);
+  border:2px solid #a87d30;border-radius:10px;box-shadow:0 7px 18px #000b;
+}
+.bidline{display:flex;align-items:center;justify-content:center;gap:7px}
+.bidline + .bidline{margin-top:7px}
+.bid-label{font-size:13px;color:#e4ca7c}
+#bidbox select{
+  height:36px;padding:5px 8px;border-radius:7px;border:1px solid #9d7732;
+  background:#0b0e0c;color:#f4e8c7;font:14px Georgia;
+}
+#bidbox .btn{height:36px;padding:4px 11px;font-size:14px}
+#passBtn{background:linear-gradient(#8e312e,#491011)}
+.bid-number{min-width:78px;background:linear-gradient(#15412e,#071c13)}
+
+/* Player hand */
+#playerArea{
+  position:absolute;z-index:35;left:50%;bottom:71px;transform:translateX(-50%);
+  width:1380px;height:180px;
+}
+#playerLabel{
+  position:absolute;z-index:100;left:50%;bottom:0;transform:translateX(-50%);
+  min-width:310px;text-align:center;padding:7px 25px;
+  background:linear-gradient(#111512,#050705);border:2px solid #a87d30;border-radius:9px;
+  font-size:20px;
+}
+#playerLabel .you{color:var(--blue)}
+#hand{
+  position:absolute;left:0;right:0;bottom:34px;height:146px;
+  display:flex;align-items:flex-end;justify-content:center;gap:0;
+}
+#hand .card{
+  width:94px;height:144px;margin-left:-47px;cursor:pointer;
+  transition:transform .12s,margin .12s,box-shadow .12s;
+}
+#hand .card:first-child{margin-left:0}
+#hand .card:hover,#hand .card:focus{
+  transform:translateY(-18px);margin-left:-35px;margin-right:12px;z-index:120;
+  outline:2px solid #f0d273;box-shadow:0 13px 22px #000b;
+}
+
+/* Footer */
+#actionbar{
+  position:absolute;z-index:60;left:14px;right:14px;bottom:10px;height:58px;
+  display:flex;align-items:center;gap:14px;padding:7px 11px;
+  background:linear-gradient(145deg,#111410,#050705);border:2px solid #a87d30;border-radius:12px;
+  box-shadow:0 7px 18px #000b;
+}
+#rules{flex:1;text-align:center;color:#f0dba1;font-size:17px}
+#rules span{color:#ad8840;margin:0 36px}
+#deal,#newHand,#soundToggle{height:42px;padding:7px 18px;font-size:17px}
+#deal{min-width:210px;background:linear-gradient(#17455f,#071d2e)}
+#soundToggle{min-width:125px;background:linear-gradient(#4c3b16,#1d1507);color:#f5dd96}
+kbd{background:#eee;color:#111;border-radius:3px;padding:1px 5px;font:12px monospace}
+
+/* Result overlay retained as a simple, clean game-layer feature. */
+#trickResult{
+  position:absolute;inset:0;z-index:500;display:flex;align-items:center;justify-content:center;
+  background:rgba(0,0,0,.62);opacity:0;visibility:hidden;pointer-events:none;transition:.2s;
+}
+#trickResult.show{opacity:1;visibility:visible}
+.result-board{
+  width:520px;min-height:300px;padding:20px;text-align:center;
+  background:linear-gradient(145deg,#161916,#050705);border:3px solid #bd9343;border-radius:18px;
+  box-shadow:0 20px 50px #000d;
+}
+.result-kicker{font:700 13px Arial;letter-spacing:.2em;color:#d6b45c}
+#resultTitle{margin-top:7px;font-size:31px;color:#f1d47b}
+#resultAnimals{font-size:85px;margin:22px 0 10px;letter-spacing:18px}
+#resultDetail{font-size:17px;color:#ddd}
+
+
+/* Clear 3D hand cursor and human card-pick animation */
+html,body,#viewport,#viewport *{
+  cursor:none !important;
+}
+#handCursor{
+  position:fixed;
+  left:0;
+  top:0;
+  width:85px;
+  height:95px;
+  pointer-events:none;
+  z-index:1200;
+  opacity:0;
+  transform:translate(-999px,-999px);
+  transition:opacity .16s ease;
+  will-change:transform;
+}
+#handCursor.visible{opacity:1}
+#handCursor .hand-pose{
+  position:absolute;
+  inset:0;
+  display:none;
+  align-items:center;
+  justify-content:center;
+  font-family:"Apple Color Emoji","Segoe UI Emoji","Noto Color Emoji",sans-serif;
+  font-size:74px;
+  line-height:1;
+  user-select:none;
+  filter:
+    drop-shadow(0 15px 10px rgba(0,0,0,.36))
+    drop-shadow(0 3px 2px rgba(255,255,255,.18));
+  transform-origin:50% 50%;
+  transform-style:preserve-3d;
+}
+#handCursor.point .pose-point{
+  display:flex;
+  transform:rotate(-4deg);
+}
+#handCursor.pinch .pose-pinch{
+  display:flex;
+  transform:scaleX(-1) rotate(-10deg) scale(1.03);
+}
+#handCursor.point .pose-point{
+  animation:handPointSettle .22s ease-out;
+}
+#handCursor.pinch .pose-pinch{
+  animation:handPinch .22s ease-out;
+}
+@keyframes handPointSettle{
+  from{transform:rotate(-4deg) scale(.94)}
+  to{transform:rotate(-4deg) scale(1)}
+}
+@keyframes handPinch{
+  from{transform:scaleX(-1) rotate(-10deg) scale(.94)}
+  to{transform:scaleX(-1) rotate(-10deg) scale(1.03)}
+}
+#hand .card.selected-by-hand{
+  transform:translateY(-9px) scale(1.03);
+  z-index:250;
+  box-shadow:0 18px 28px rgba(0,0,0,.55), inset 0 0 0 1px rgba(255,255,255,.8);
+}
+.flying-card{
+  position:fixed !important;
+  margin:0 !important;
+  pointer-events:none !important;
+  z-index:1100 !important;
+  transition:
+    left .55s cubic-bezier(.22,.9,.25,1),
+    top .55s cubic-bezier(.22,.9,.25,1),
+    transform .55s cubic-bezier(.22,.9,.25,1),
+    box-shadow .55s ease;
+}
+.flying-card.carry{
+  box-shadow:0 18px 30px rgba(0,0,0,.55), inset 0 0 0 1px rgba(255,255,255,.8);
+}
+
+/* All resizing is uniform: JS scales the full 1536x1024 stage. No panel-specific breakpoints. */
+</style>
+</head>
+<body>
+<div id="viewport">
+  <div id="game">
+    <section class="table">
+      <div class="rail"></div>
+      <div class="cup tl"></div><div class="cup tr"></div><div class="cup bl"></div><div class="cup br"></div>
+
+      <aside id="scoreboard" class="panel">
+        <div class="panel-title">SCORE</div>
+        <div class="score-row you"><span>You</span><strong id="us">0 / 500</strong></div>
+        <div class="score-row cpu"><span>CPU</span><strong id="them">0 / 500</strong></div>
+        <div id="handNoRow">Hand: <span id="handNo">1</span></div>
+      </aside>
+
+      <aside id="gamelog" class="panel">
+        <div class="panel-title">GAME LOG</div>
+        <div id="log">
+          <div>--- New Hand ---</div>
+          <div style="color:#35baff">Dealer: You</div>
+          <div style="color:#f0d45e">Press DEAL or D to start.</div>
+        </div>
+      </aside>
+
+      <aside id="trumpPanel" class="panel">
+        <div class="panel-title">TRUMP</div>
+        <div id="trumpName">—</div>
+        <div id="trumpSymbol">♠</div>
+      </aside>
+
+      <aside id="controlsPanel" class="panel">
+        <div class="panel-title">CONTROLS</div>
+        <div id="controlsText">
+          <b>D</b> - Deal / New Hand<br>
+          <b>1-0</b> - Play Card<br>
+          <b>P</b> - Pass (during bidding)<br>
+          <b>6-9 / 0</b> - Choose Bid<br>
+          <b>← →</b> - Change Trump<br>
+          <b>Enter</b> - Submit Bid<br>
+          <b>H</b> - Show / Hide Help<br>
+          <b>M</b> - Mute / Unmute
+        </div>
+      </aside>
+      <button type="button" id="helpBtn" class="btn" aria-expanded="true" aria-controls="controlsPanel">Hide Help</button>
+
+      <aside id="soundMixer" class="panel" aria-label="Audio mix">
+        <div class="panel-title">AUDIO MIX</div>
+        <div class="mixer-row">
+          <div class="mixer-head"><label for="musicVolume">Music</label><span id="musicVolumeValue" class="mixer-value">64%</span></div>
+          <input id="musicVolume" type="range" min="0" max="100" value="64" aria-label="Music volume">
+        </div>
+        <div class="mixer-row">
+          <div class="mixer-head"><label for="crowdVolume">Crowd</label><span id="crowdVolumeValue" class="mixer-value">92%</span></div>
+          <input id="crowdVolume" type="range" min="0" max="100" value="92" aria-label="Crowd volume">
+        </div>
+        <div class="mixer-row">
+          <div class="mixer-head"><label for="dealerVolume">Dealer</label><span id="dealerVolumeValue" class="mixer-value">22%</span></div>
+          <input id="dealerVolume" type="range" min="0" max="100" value="22" aria-label="Dealer voice volume">
+        </div>
+      </aside>
+  <button id="soundMixerToggle" type="button" aria-expanded="true" aria-controls="soundMixer">Hide Audio Mix</button>
+
+      <div id="status" class="panel">CPU <span class="state">| Pass</span></div>
+      <div id="cpuHand"></div>
+
+      <div id="emblem">
+        <div id="emblemMain">500</div>
+        <div id="emblemSub">FIVE HUNDRED</div>
+        <div id="emblemSuits">♠ <span class="heart">♥</span> <span class="diamond">♦</span> ♣</div>
+      </div>
+
+      <div id="trick"></div>
+
+      <div id="bidbox" style="display:none">
+        <div class="bidline">
+          <span class="bid-label">YOUR BID</span>
+          <select id="bid">
+            <option value="pass">Pass</option><option value="6">6</option><option value="7">7</option>
+            <option value="8">8</option><option value="9">9</option><option value="10">10</option>
+          </select>
+          <span class="bid-label">TRUMP</span>
+          <button type="button" class="btn" id="prevTrump">◀</button>
+          <select id="suit">
+            <option value="♠">♠ Spades</option><option value="♥">♥ Hearts</option>
+            <option value="♦">♦ Diamonds</option><option value="♣">♣ Clubs</option>
+            <option value="NT">No Trumps</option>
+          </select>
+          <button type="button" class="btn" id="nextTrump">▶</button>
+          <button type="button" class="btn" id="bidBtn">SUBMIT BID</button>
+        </div>
+        <div class="bidline">
+          <button type="button" class="btn" id="passBtn">PASS</button>
+          <button type="button" class="btn bid-number" data-bid="6">6</button>
+          <button type="button" class="btn bid-number" data-bid="7">7</button>
+          <button type="button" class="btn bid-number" data-bid="8">8</button>
+          <button type="button" class="btn bid-number" data-bid="9">9</button>
+          <button type="button" class="btn bid-number" data-bid="10">10</button>
+        </div>
+      </div>
+
+      <div id="playerArea">
+        <div id="hand"></div>
+        <div id="playerLabel"><span class="you">YOU</span> <span>(Dealer)</span></div>
+      </div>
+
+      <div id="actionbar">
+        <div id="rules">First to reach 500 points wins. <span>|</span> Dealer leads. <span>|</span> Highest trump wins the trick.</div>
+        <button type="button" class="btn" id="soundToggle">SOUND ON</button>
+        <button type="button" class="btn" id="deal">DEAL</button>
+        <button type="button" class="btn" id="newHand" disabled>NEW HAND</button>
+      </div>
+
+      <div id="trickResult" aria-hidden="true">
+        <div class="result-board">
+          <div class="result-kicker">TRICK COMPLETE</div>
+          <div id="resultTitle">YOU WIN THE TRICK</div>
+          <div id="resultAnimals">🐶 🃏 🐶</div>
+          <div id="resultDetail">You take the trick.</div>
+        </div>
+      </div>
+    </section>
+  </div>
+</div>
+
+
+
+
+
+
+
+
+
+<div id="handCursor" class="point" aria-hidden="true">
+  <div class="hand-pose pose-point">👆🏻</div>
+  <div class="hand-pose pose-pinch">🫳🏻</div>
+</div>
+
+<script>
+(()=>{
+  const BASE_W=1536, BASE_H=1024;
+  const viewport=document.getElementById("viewport");
+  const game=document.getElementById("game");
+
+  function fitGame(){
+    const w=Math.max(320,window.innerWidth);
+    const h=Math.max(320,window.innerHeight);
+
+    // Stretch the game independently on each axis so it exactly matches
+    // the browser window with no unused space at the sides.
+    const scaleX=w/BASE_W;
+    const scaleY=h/BASE_H;
+
+    game.style.left="0px";
+    game.style.top="0px";
+    game.style.transform=`scale(${scaleX},${scaleY})`;
+  }
+  fitGame();
+  window.addEventListener("resize",fitGame,{passive:true});
+
+  const suits=["♠","♥","♦","♣"], ranks=["4","5","6","7","8","9","10","J","Q","K","A"];
+  let deck=[],hand=[],cpu=[],scores=[0,0],phase="idle",trick=[],tricks=[0,0],contract=null,trump=null,current=0,handNo=1;
+  let nextCardId=1,isAnimatingPlay=false,cursorLocked=false,lastPointerX=window.innerWidth*0.7,lastPointerY=window.innerHeight*0.8;
+  const $=id=>document.getElementById(id);
+
+  // ---------------- Casino audio engine ----------------
+  // Everything is generated locally with Web Audio + browser speech synthesis.
+  // Audio starts only after the first click/key press because browsers block autoplay.
+  let audioCtx=null, masterGain=null, ambienceGain=null, musicGain=null, musicToneFilter=null, musicCompressor=null, fxGain=null;
+  let crowdNoise=null, musicTimer=null, musicStep=0, soundMuted=false;
+  let musicVolume=.64, crowdVolume=.92, dealerVolume=.22;
+  const activeAudioNodes=new Set();
+  const HUMAN_CROWD_CHEERS=[
+    "https://upload.wikimedia.org/wikipedia/commons/transcoded/0/09/Applause_ii.ogg/Applause_ii.ogg.mp3",
+    "https://upload.wikimedia.org/wikipedia/commons/transcoded/8/8e/Applause.ogg/Applause.ogg.mp3"
+  ];
+  const HUMAN_CROWD_SUBDUED=[
+    "https://upload.wikimedia.org/wikipedia/commons/transcoded/a/a3/Slow_starting_applause.ogg/Slow_starting_applause.ogg.mp3"
+  ];
+  const activeCrowdSamples=new Set();
+  const humanCrowdBuffers={cheer:[],subdued:[]};
+  let crowdLoadPromise=null;
+  let lastCheerIndex=-1,lastSubduedIndex=-1;
+  let musicRestoreTimer=null;
+
+  async function fetchAudioArrayBuffer(url){
+    const response=await fetch(url,{mode:"cors",cache:"force-cache"});
+    if(!response.ok) throw new Error(`Crowd audio request failed: ${response.status}`);
+    return response.arrayBuffer();
+  }
+
+  function decodeAudioBuffer(arrayBuffer){
+    return new Promise((resolve,reject)=>{
+      const copy=arrayBuffer.slice(0);
+      const p=audioCtx.decodeAudioData(copy,resolve,reject);
+      if(p&&typeof p.then==="function") p.then(resolve).catch(reject);
+    });
+  }
+
+  function loadHumanCrowdBuffers(){
+    if(!audioCtx) return Promise.resolve();
+    if(humanCrowdBuffers.cheer.length&&humanCrowdBuffers.boo.length) return Promise.resolve();
+    if(crowdLoadPromise) return crowdLoadPromise;
+
+    const decodeUrl=url=>fetchAudioArrayBuffer(url).then(decodeAudioBuffer);
+    crowdLoadPromise=Promise.all([
+      Promise.all(HUMAN_CROWD_CHEERS.map(decodeUrl)),
+      Promise.all(HUMAN_CROWD_SUBDUED.map(decodeUrl))
+    ]).then(([cheers,subdued])=>{
+      humanCrowdBuffers.cheer=cheers.filter(Boolean);
+      humanCrowdBuffers.subdued=subdued.filter(Boolean);
+    }).catch(err=>{
+      console.warn("Recorded crowd audio could not load:",err);
+      crowdLoadPromise=null;
+    });
+    return crowdLoadPromise;
+  }
+
+  function ensureAudio(){
+    if(soundMuted) return;
+    const AC=window.AudioContext||window.webkitAudioContext;
+    if(!AC) return;
+    if(!audioCtx){
+      audioCtx=new AC();
+
+      masterGain=audioCtx.createGain();
+      masterGain.gain.value=.88;
+      masterGain.connect(audioCtx.destination);
+
+      ambienceGain=audioCtx.createGain();
+      ambienceGain.gain.value=0;
+      ambienceGain.connect(masterGain);
+
+      musicGain=audioCtx.createGain();
+      musicGain.gain.value=musicVolume;
+
+      // Warm the music bus and tame sharp peaks/clicks without adding reverb.
+      musicToneFilter=audioCtx.createBiquadFilter();
+      musicToneFilter.type="lowpass";
+      musicToneFilter.frequency.value=5200;
+      musicToneFilter.Q.value=.42;
+
+      musicCompressor=audioCtx.createDynamicsCompressor();
+      musicCompressor.threshold.value=-18;
+      musicCompressor.knee.value=24;
+      musicCompressor.ratio.value=1.8;
+      musicCompressor.attack.value=.024;
+      musicCompressor.release.value=.24;
+
+      musicGain.connect(musicToneFilter).connect(musicCompressor).connect(masterGain);
+
+      fxGain=audioCtx.createGain();
+      fxGain.gain.value=crowdVolume;
+      fxGain.connect(masterGain);
+
+      // Continuous ambience removed; keep music and reactive crowd cheers/subdued reactions.
+    }
+
+    const startMusicWhenReady=()=>{
+      if(!soundMuted && audioCtx && audioCtx.state==="running"){
+        loadHumanCrowdBuffers();
+        if(!musicTimer) startClassicalMusic();
+      }
+    };
+
+    if(audioCtx.state==="suspended"){
+      audioCtx.resume().then(startMusicWhenReady).catch(()=>{});
+    }else{
+      startMusicWhenReady();
+    }
+  }
+
+  function makeNoiseBuffer(seconds=3){
+    if(!audioCtx) return null;
+    const len=Math.max(1,Math.floor(audioCtx.sampleRate*seconds));
+    const buf=audioCtx.createBuffer(1,len,audioCtx.sampleRate);
+    const d=buf.getChannelData(0);
+    let brown=0;
+    for(let i=0;i<len;i++){
+      const white=Math.random()*2-1;
+      brown=(brown+.025*white)/1.025;
+      d[i]=(white*.34+brown*2.6)*.28;
+    }
+    return buf;
+  }
+
+  function startCrowdAmbience(){
+    if(!audioCtx||crowdNoise) return;
+    const src=audioCtx.createBufferSource();
+    src.buffer=makeNoiseBuffer(5);
+    src.loop=true;
+
+    const low=audioCtx.createBiquadFilter();
+    low.type="lowpass"; low.frequency.value=1150; low.Q.value=.5;
+
+    const high=audioCtx.createBiquadFilter();
+    high.type="highpass"; high.frequency.value=95;
+
+    const sway=audioCtx.createGain();
+    sway.gain.value=.8;
+
+    const lfo=audioCtx.createOscillator();
+    const lfoDepth=audioCtx.createGain();
+    lfo.frequency.value=.11;
+    lfoDepth.gain.value=.18;
+    lfo.connect(lfoDepth).connect(sway.gain);
+
+    src.connect(low).connect(high).connect(sway).connect(ambienceGain);
+    src.start(); lfo.start();
+    crowdNoise={src,lfo};
+  }
+
+  function tone(freq,start,dur,gain=.06,type="triangle",dest=musicGain){
+    if(!audioCtx||!dest) return;
+    const osc=audioCtx.createOscillator();
+    const g=audioCtx.createGain();
+    osc.type=type;
+    osc.frequency.setValueAtTime(freq,start);
+    g.gain.setValueAtTime(.0001,start);
+    g.gain.exponentialRampToValueAtTime(Math.max(.0002,gain),start+.025);
+    g.gain.exponentialRampToValueAtTime(.0001,start+dur);
+    osc.connect(g).connect(dest);
+    osc.start(start); osc.stop(start+dur+.04);
+  }
+
+  function midi(n){ return 440*Math.pow(2,(n-69)/12); }
+
+  function startClassicalMusic(){
+    if(!audioCtx||musicTimer||soundMuted) return;
+
+    // Smooth generative Highland pipes & drums.
+    // A Web Audio look-ahead scheduler queues phrases before they are needed,
+    // eliminating gaps, timing drift and skipped-sounding transitions.
+    const scale=[67,69,71,72,74,76,77,79,81,83,84,86];
+    const homeNotes=[69,72,74,76,79];
+    let currentPhrase=[69,72,74,76,74,72,71,69];
+    let phraseNumber=0;
+    let nextPhraseTime=audioCtx.currentTime+.12;
+    const recentPhrases=[];
+    const BEAT=.305;
+    const PHRASE_LEN=BEAT*8;
+
+    function clampScaleIndex(i){
+      return Math.max(0,Math.min(scale.length-1,i));
+    }
+
+    function nearestScaleIndex(note){
+      let best=0,dist=Infinity;
+      scale.forEach((n,i)=>{
+        const d=Math.abs(n-note);
+        if(d<dist){dist=d;best=i}
+      });
+      return best;
+    }
+
+    function phraseSignature(notes){
+      return notes.join(",");
+    }
+
+    function tooRecentlyUsed(notes){
+      return recentPhrases.includes(phraseSignature(notes));
+    }
+
+    function rememberPhrase(notes){
+      recentPhrases.push(phraseSignature(notes));
+      while(recentPhrases.length>18) recentPhrases.shift();
+    }
+
+    function mutatePhrase(previous){
+      let result=previous.slice();
+      const mutations=4+Math.floor(Math.random()*4);
+
+      for(let n=0;n<mutations;n++){
+        const i=1+Math.floor(Math.random()*(result.length-2));
+        const idx=nearestScaleIndex(result[i]);
+        const steps=[-2,-1,-1,1,1,2];
+        result[i]=scale[clampScaleIndex(idx+steps[Math.floor(Math.random()*steps.length)])];
+      }
+
+      if(Math.random()<.72){
+        const start=1+Math.floor(Math.random()*4);
+        const base=nearestScaleIndex(result[start]);
+        const shape=Math.random()<.5?[0,1,2]:[0,-1,-2];
+        for(let j=0;j<3;j++) result[start+j]=scale[clampScaleIndex(base+shape[j])];
+      }
+
+      if(Math.random()<.38){
+        const delta=Math.random()<.55?1:-1;
+        for(let i=2;i<=5;i++){
+          const idx=nearestScaleIndex(result[i]);
+          result[i]=scale[clampScaleIndex(idx+delta)];
+        }
+      }
+
+      if(Math.random()<.62) result[0]=homeNotes[Math.floor(Math.random()*homeNotes.length)];
+      if(Math.random()<.72){
+        const endings=[69,72,74,76];
+        result[7]=endings[Math.floor(Math.random()*endings.length)];
+      }
+
+      let attempts=0;
+      while((tooRecentlyUsed(result)||result.every((v,i)=>v===previous[i]))&&attempts<8){
+        const i=1+Math.floor(Math.random()*6);
+        const idx=nearestScaleIndex(result[i]);
+        result[i]=scale[clampScaleIndex(idx+(Math.random()<.5?-1:1))];
+        attempts++;
+      }
+
+      rememberPhrase(result);
+      return result;
+    }
+
+    function pipeTone(freq,start,dur,gain=.05){
+      if(!audioCtx||!musicGain) return;
+
+      const mix=audioCtx.createGain();
+      const env=audioCtx.createGain();
+      const warmth=audioCtx.createBiquadFilter();
+      const body=audioCtx.createBiquadFilter();
+
+      // Keep the fundamental body instead of emphasizing brittle upper harmonics.
+      warmth.type="lowpass";
+      warmth.frequency.setValueAtTime(Math.min(3900,Math.max(2100,freq*7.5)),start);
+      warmth.Q.value=.38;
+
+      body.type="peaking";
+      body.frequency.setValueAtTime(Math.max(520,Math.min(1100,freq*1.65)),start);
+      body.Q.value=.7;
+      body.gain.value=2.4;
+
+      // Rounded attack/release prevents clicks and hard note edges.
+      const attack=Math.min(.072,Math.max(.045,dur*.18));
+      const release=Math.min(.14,Math.max(.085,dur*.28));
+      const sustainEnd=Math.max(start+attack+.01,start+dur-release);
+      env.gain.setValueAtTime(.0001,start);
+      env.gain.exponentialRampToValueAtTime(Math.max(.0002,gain),start+attack);
+      env.gain.setValueAtTime(Math.max(.0002,gain*.94),sustainEnd);
+      env.gain.exponentialRampToValueAtTime(.0001,start+dur);
+
+      // Gentle natural vibrato shared by all partials.
+      const vibrato=audioCtx.createOscillator();
+      const vibratoDepth=audioCtx.createGain();
+      vibrato.type="sine";
+      vibrato.frequency.setValueAtTime(4.9+Math.random()*.35,start);
+      vibratoDepth.gain.value=2.6+Math.random()*1.2;
+      vibrato.connect(vibratoDepth);
+
+      const partials=[
+        {ratio:1,amp:.60,type:"triangle",detune:-1.2},
+        {ratio:1,amp:.24,type:"sine",detune:1.4},
+        {ratio:2,amp:.085,type:"triangle",detune:.4},
+        {ratio:3,amp:.028,type:"sine",detune:-.8}
+      ];
+
+      partials.forEach(p=>{
+        const osc=audioCtx.createOscillator();
+        const g=audioCtx.createGain();
+        osc.type=p.type;
+        osc.frequency.setValueAtTime(freq*p.ratio,start);
+        osc.detune.setValueAtTime(p.detune,start);
+        vibratoDepth.connect(osc.detune);
+        g.gain.value=p.amp;
+        osc.connect(g).connect(mix);
+        osc.start(start);
+        osc.stop(start+dur+.06);
+      });
+
+      vibrato.start(start);
+      vibrato.stop(start+dur+.06);
+
+      mix.connect(body).connect(warmth).connect(env).connect(musicGain);
+    }
+
+    function bassTone(freq,start,dur,gain=.05){
+      if(!audioCtx||!musicGain) return;
+
+      const mix=audioCtx.createGain();
+      const env=audioCtx.createGain();
+      const lowpass=audioCtx.createBiquadFilter();
+
+      lowpass.type="lowpass";
+      lowpass.frequency.value=420;
+      lowpass.Q.value=.48;
+
+      env.gain.setValueAtTime(.0001,start);
+      env.gain.exponentialRampToValueAtTime(Math.max(.0002,gain),start+.035);
+      env.gain.setValueAtTime(Math.max(.0002,gain*.88),Math.max(start+.05,start+dur-.13));
+      env.gain.exponentialRampToValueAtTime(.0001,start+dur);
+
+      const fundamental=audioCtx.createOscillator();
+      const body=audioCtx.createOscillator();
+      const sub=audioCtx.createOscillator();
+
+      const bodyGain=audioCtx.createGain();
+      const subGain=audioCtx.createGain();
+
+      fundamental.type="sine";
+      fundamental.frequency.setValueAtTime(freq,start);
+
+      body.type="triangle";
+      body.frequency.setValueAtTime(freq,start);
+      body.detune.value=2.5;
+      bodyGain.gain.value=.34;
+
+      sub.type="sine";
+      sub.frequency.setValueAtTime(Math.max(28,freq/2),start);
+      subGain.gain.value=.22;
+
+      fundamental.connect(mix);
+      body.connect(bodyGain).connect(mix);
+      sub.connect(subGain).connect(mix);
+
+      mix.connect(lowpass).connect(env).connect(musicGain);
+
+      fundamental.start(start);
+      body.start(start);
+      sub.start(start);
+
+      fundamental.stop(start+dur+.05);
+      body.stop(start+dur+.05);
+      sub.stop(start+dur+.05);
+    }
+
+    function drumHit(start,kind="snare",level=1){
+      if(!audioCtx||!musicGain) return;
+
+      if(kind==="bass"){
+        const osc=audioCtx.createOscillator();
+        const body=audioCtx.createOscillator();
+        const g=audioCtx.createGain();
+        const bodyGain=audioCtx.createGain();
+        const lowpass=audioCtx.createBiquadFilter();
+
+        osc.type="sine";
+        osc.frequency.setValueAtTime(86,start);
+        osc.frequency.exponentialRampToValueAtTime(46,start+.20);
+
+        body.type="triangle";
+        body.frequency.setValueAtTime(58,start);
+        body.frequency.exponentialRampToValueAtTime(43,start+.23);
+        bodyGain.gain.value=.28;
+
+        lowpass.type="lowpass";
+        lowpass.frequency.value=900;
+        lowpass.Q.value=.35;
+
+        g.gain.setValueAtTime(.0001,start);
+        g.gain.exponentialRampToValueAtTime(.10*level,start+.018);
+        g.gain.exponentialRampToValueAtTime(.0001,start+.34);
+
+        osc.connect(g);
+        body.connect(bodyGain).connect(g);
+        g.connect(lowpass).connect(musicGain);
+        osc.start(start); body.start(start);
+        osc.stop(start+.36); body.stop(start+.36);        return;
+      }
+
+      // Fuller side drum: filtered noise plus a quiet shell/body resonance.
+      const len=Math.floor(audioCtx.sampleRate*.22);
+      const buf=audioCtx.createBuffer(1,len,audioCtx.sampleRate);
+      const data=buf.getChannelData(0);
+      let smooth=0;
+      for(let i=0;i<len;i++){
+        const white=Math.random()*2-1;
+        smooth=smooth*.38+white*.62;
+        const decay=Math.exp(-i/(audioCtx.sampleRate*.064));
+        data[i]=smooth*decay;
+      }
+
+      const src=audioCtx.createBufferSource();
+      src.buffer=buf;
+
+      const band=audioCtx.createBiquadFilter();
+      band.type="bandpass";
+      band.frequency.value=1850+Math.random()*180;
+      band.Q.value=.58;
+
+      const soften=audioCtx.createBiquadFilter();
+      soften.type="lowpass";
+      soften.frequency.value=4200;
+      soften.Q.value=.3;
+
+      const noiseGain=audioCtx.createGain();
+      noiseGain.gain.setValueAtTime(.0001,start);
+      noiseGain.gain.exponentialRampToValueAtTime(.050*level,start+.012);
+      noiseGain.gain.exponentialRampToValueAtTime(.0001,start+.20);
+
+      const shell=audioCtx.createOscillator();
+      const shellGain=audioCtx.createGain();
+      shell.type="triangle";
+      shell.frequency.setValueAtTime(205+Math.random()*22,start);
+      shell.frequency.exponentialRampToValueAtTime(155,start+.11);
+      shellGain.gain.setValueAtTime(.0001,start);
+      shellGain.gain.exponentialRampToValueAtTime(.022*level,start+.010);
+      shellGain.gain.exponentialRampToValueAtTime(.0001,start+.14);
+
+      src.connect(band).connect(soften).connect(noiseGain).connect(musicGain);
+      shell.connect(shellGain).connect(musicGain);
+      src.start(start);
+      shell.start(start);
+      shell.stop(start+.16);
+    }
+
+    function schedulePhrase(start){
+      if(soundMuted) return;
+
+      if(phraseNumber>0) currentPhrase=mutatePhrase(currentPhrase);
+      else rememberPhrase(currentPhrase);
+
+      const tonalCycle=[69,72,74,71,76,69,74,72];
+      const tonalRoot=tonalCycle[Math.floor(phraseNumber/3)%tonalCycle.length];
+      const droneRoot=tonalRoot-24;
+
+      // Four-part energy cycle: build, lift, peak, release.
+      const cycle=phraseNumber%12;
+      const energy=
+        cycle<3 ? .96+cycle*.05 :
+        cycle<7 ? 1.11+(cycle-3)*.045 :
+        cycle<10 ? 1.29-(cycle-7)*.035 :
+        1.10-(cycle-10)*.06;
+
+      // Warm overlapping drones keep continuity, but they breathe dynamically.
+      pipeTone(midi(droneRoot),start,PHRASE_LEN+.09,.029*energy);
+      pipeTone(midi(droneRoot+12),start,PHRASE_LEN+.09,.021*energy);
+      pipeTone(midi(droneRoot+19),start,PHRASE_LEN+.09,.0105*energy);
+
+      // Dedicated musical bass layer beneath the pipes.
+      // Root/fifth movement gives the tune weight without masking the drums.
+      const bassRoot=tonalRoot-36;
+      const bassFifth=bassRoot+7;
+      const bassOctave=bassRoot+12;
+      const bassPattern = phraseNumber%4===0
+        ? [bassRoot,bassRoot,bassFifth,bassRoot]
+        : phraseNumber%4===1
+          ? [bassRoot,bassFifth,bassOctave,bassFifth]
+          : phraseNumber%4===2
+            ? [bassRoot,bassOctave,bassFifth,bassRoot]
+            : [bassRoot,bassFifth,bassRoot,bassOctave];
+
+      for(let i=0;i<4;i++){
+        bassTone(
+          midi(bassPattern[i]),
+          start+i*BEAT*2,
+          BEAT*1.72,
+          (.050+(i===0?.014:0))*energy
+        );
+      }
+
+      // Small walking pickup into selected phrases.
+      if(phraseNumber%3===2){
+        const walk=[bassRoot+2,bassRoot+4,bassFifth];
+        walk.forEach((note,i)=>{
+          bassTone(midi(note),start+BEAT*(6.35+i*.48),BEAT*.38,.026*energy);
+        });
+      }
+
+      // More varied marching bass patterns.
+      const bassPatterns=[
+        [0,4],
+        [0,2,4,6],
+        [0,3,4,7],
+        [0,2,5,6],
+        [0,4,6],
+        [0,1.5,4,5.5]
+      ];
+      const bp=bassPatterns[phraseNumber%bassPatterns.length];
+      bp.forEach((beatPos,k)=>{
+        drumHit(start+beatPos*BEAT,"bass",(k===0?1:.70+Math.random()*.18)*energy);
+      });
+
+      // Side drum becomes more animated during higher-energy phrases.
+      const dense=cycle>=3&&cycle<=8;
+      for(let i=0;i<16;i++){
+        const t=start+i*(BEAT/2);
+        const strong=i%4===0;
+        const skip=!strong && Math.random()>(dense?.92:.76);
+        if(skip) continue;
+
+        drumHit(t,"snare",(strong?.96:.46+Math.random()*.18)*energy);
+
+        // Occasional flams.
+        if((i+phraseNumber)%5===2 && Math.random()<(dense?.62:.34)){
+          drumHit(t+.042,"snare",.30*energy);
+        }
+
+        // Short roll at the end of selected phrases.
+        if(i===13 && (phraseNumber%4===2 || phraseNumber%6===5)){
+          drumHit(t+.040,"snare",.28*energy);
+          drumHit(t+.080,"snare",.23*energy);
+          drumHit(t+.120,"snare",.18*energy);
+        }
+      }
+
+      // Main chanter melody.
+      for(let i=0;i<8;i++){
+        const note=currentPhrase[i];
+        const next=currentPhrase[Math.min(7,i+1)];
+        const prev=currentPhrase[Math.max(0,i-1)];
+
+        const hold=(i===3||i===7) ? .98 : .84+Math.random()*.10;
+        const gain=.048*energy*(.96+Math.random()*.10);
+        pipeTone(midi(note),start+i*BEAT,BEAT*hold,gain);
+
+        // More frequent but still smooth grace-note ornaments.
+        if(Math.random()<(dense?.58:.40)){
+          const direction=next>=note?1:-1;
+          const idx=nearestScaleIndex(note);
+          const grace=scale[clampScaleIndex(idx+direction)];
+          pipeTone(midi(grace),start+i*BEAT-.052,.066,.0135*energy);
+        }
+
+        // Quick lower cut ornament.
+        if(i>0 && i<7 && prev!==note && Math.random()<.19){
+          const idx=nearestScaleIndex(note);
+          const cut=scale[clampScaleIndex(idx-1)];
+          pipeTone(midi(cut),start+i*BEAT+.055,.055,.010*energy);
+        }
+      }
+
+      // Call-and-response upper pipe line every other phrase.
+      if(phraseNumber%2===1){
+        const answerStart=start+BEAT*.5;
+        for(let i=0;i<4;i++){
+          const srcNote=currentPhrase[i*2];
+          const idx=nearestScaleIndex(srcNote);
+          const answer=scale[clampScaleIndex(idx+(i%2===0?2:1))];
+          pipeTone(
+            midi(answer),
+            answerStart+i*BEAT*1.65,
+            BEAT*.54,
+            .018*energy
+          );
+        }
+      }
+
+      // A brief bright lift at the peak of the 12-phrase cycle.
+      if(cycle===6 || cycle===7){
+        const highBase=currentPhrase[4];
+        const idx=nearestScaleIndex(highBase);
+        const high1=scale[clampScaleIndex(idx+2)];
+        const high2=scale[clampScaleIndex(idx+3)];
+        pipeTone(midi(high1),start+BEAT*5.15,BEAT*.45,.020*energy);
+        pipeTone(midi(high2),start+BEAT*6.15,BEAT*.48,.018*energy);
+      }
+
+      phraseNumber++;
+      musicStep=phraseNumber;
+    }
+
+    function schedulerTick(){
+      if(!audioCtx||soundMuted||audioCtx.state!=="running") return;
+
+      // Always keep roughly 1.2 seconds of music queued ahead.
+      const horizon=audioCtx.currentTime+1.2;
+      while(nextPhraseTime<horizon){
+        schedulePhrase(nextPhraseTime);
+        nextPhraseTime+=PHRASE_LEN;
+      }
+    }
+
+    // Queue several phrases immediately, then maintain a short look-ahead buffer.
+    schedulerTick();
+    musicTimer=setInterval(schedulerTick,180);
+  }
+
+  function noiseBurst({dur=.7,low=250,high=2800,gain=.18,when=0}={}){
+    if(!audioCtx||!fxGain) return;
+    const start=audioCtx.currentTime+when;
+    const src=audioCtx.createBufferSource();
+    src.buffer=makeNoiseBuffer(Math.max(.3,dur));
+    const bp=audioCtx.createBiquadFilter();
+    bp.type="bandpass";
+    bp.frequency.value=(low+high)/2;
+    bp.Q.value=.45;
+    const g=audioCtx.createGain();
+    g.gain.setValueAtTime(.0001,start);
+    g.gain.exponentialRampToValueAtTime(gain,start+.03);
+    g.gain.exponentialRampToValueAtTime(.0001,start+dur);
+    src.connect(bp).connect(g).connect(fxGain);
+    src.start(start);
+    src.stop(start+dur+.05);
+  }
+
+  function duckMusicForCrowd(ms=1900){
+    if(!audioCtx||!musicGain||soundMuted) return;
+    const now=audioCtx.currentTime;
+    musicGain.gain.cancelScheduledValues(now);
+    musicGain.gain.setTargetAtTime(Math.max(.015,musicVolume*.38),now,.05);
+    clearTimeout(musicRestoreTimer);
+    musicRestoreTimer=setTimeout(()=>{
+      if(audioCtx&&musicGain&&!soundMuted){
+        musicGain.gain.setTargetAtTime(musicVolume,audioCtx.currentTime,.12);
+      }
+    },ms);
+  }
+
+  function pickCrowdBuffer(kind){
+    const bank=humanCrowdBuffers[kind]||[];
+    if(!bank.length) return null;
+    let idx=Math.floor(Math.random()*bank.length);
+    if(bank.length>1){
+      const last=kind==="cheer"?lastCheerIndex:lastSubduedIndex;
+      if(idx===last) idx=(idx+1)%bank.length;
+    }
+    if(kind==="cheer") lastCheerIndex=idx;
+    else lastSubduedIndex=idx;
+    return bank[idx];
+  }
+
+  function playHumanCrowd(kind,volume=.9){
+    if(soundMuted) return;
+    ensureAudio();
+    if(!audioCtx||!fxGain) return;
+
+    const play=()=>{
+      const buffer=pickCrowdBuffer(kind);
+      if(!buffer||soundMuted) return;
+
+      const usableDuration=Math.min(
+        kind==="cheer" ? 4.3 : 2.8,
+        Math.max(1.2,buffer.duration)
+      );
+      duckMusicForCrowd(usableDuration*1000+400);
+
+      const src=audioCtx.createBufferSource();
+      const gain=audioCtx.createGain();
+      const highpass=audioCtx.createBiquadFilter();
+      const panner=audioCtx.createStereoPanner ? audioCtx.createStereoPanner() : null;
+
+      src.buffer=buffer;
+      // Tiny speed variation prevents repeated samples sounding identical.
+      src.playbackRate.value=kind==="cheer"
+        ? .98+Math.random()*.04
+        : .99+Math.random()*.025;
+
+      highpass.type="highpass";
+      highpass.frequency.value=65;
+      highpass.Q.value=.32;
+
+      const now=audioCtx.currentTime+.01;
+      const naturalLevel=volume*(.90+Math.random()*.14);
+      gain.gain.setValueAtTime(.0001,now);
+      gain.gain.exponentialRampToValueAtTime(Math.max(.001,naturalLevel),now+.11);
+      gain.gain.setValueAtTime(Math.max(.001,naturalLevel*.96),now+Math.max(.18,usableDuration-.42));
+      gain.gain.exponentialRampToValueAtTime(.0001,now+usableDuration);
+
+      if(panner){
+        // Crowd feels spread around the table instead of coming from dead center.
+        panner.pan.value=(Math.random()-.5)*.55;
+        src.connect(highpass).connect(gain).connect(panner).connect(fxGain);
+      }else{
+        src.connect(highpass).connect(gain).connect(fxGain);
+      }
+
+      activeCrowdSamples.add(src);
+      src.onended=()=>activeCrowdSamples.delete(src);
+
+      // Start at a slightly different point in long applause recordings.
+      const maxOffset=Math.max(0,buffer.duration-usableDuration-.15);
+      const offset=maxOffset>0 ? Math.random()*Math.min(maxOffset,2.2) : 0;
+      src.start(now,offset,usableDuration);
+    };
+
+    if((humanCrowdBuffers[kind]||[]).length){
+      play();
+    }else{
+      loadHumanCrowdBuffers().then(play);
+    }
+  }
+
+  function crowdCheer(){
+    playHumanCrowd("cheer",.94);
+  }
+
+  function crowdSubdued(){
+    playHumanCrowd("subdued",.42);
+  }
+
+  function cardName(c){
+    if(!c) return "";
+    if(c.r==="Joker") return "Joker";
+    const rankNames={J:"Jack",Q:"Queen",K:"King",A:"Ace"};
+    const suitNames={"♠":"Spades","♥":"Hearts","♦":"Diamonds","♣":"Clubs"};
+    return `${rankNames[c.r]||c.r} of ${suitNames[c.s]||c.s}`;
+  }
+
+  function spokenSuit(s){
+    const suitNames={"♠":"Spades","♥":"Hearts","♦":"Diamonds","♣":"Clubs","NT":"No Trumps"};
+    return suitNames[s]||String(s||"No Trump");
+  }
+
+  function dealerSay(text,delay=0){
+    if(soundMuted||!("speechSynthesis" in window)) return;
+    window.setTimeout(()=>{
+      if(soundMuted) return;
+      const u=new SpeechSynthesisUtterance(text);
+      const voices=speechSynthesis.getVoices();
+      const english=voices.filter(v=>/^en/i.test(v.lang||""));
+      const preferred=english.find(v=>/male|daniel|george|david|james|thomas|fred/i.test(v.name||""))
+        || english[0] || voices[0];
+      if(preferred) u.voice=preferred;
+      u.volume=dealerVolume;
+      u.rate=1.06;
+      u.pitch=.78;
+      speechSynthesis.speak(u);
+    },delay);
+  }
+
+  function crowdReactionForCard(c){
+    if(!c) return;
+    const high=["10","J","Q","K","A"];
+    const impressive=c.r==="Joker" || (trump&&c.s===trump) || high.includes(c.r);
+
+    // Routine cards get silence. Only notable plays earn a brief audience response.
+    if(impressive && Math.random()<.42){
+      playHumanCrowd("cheer",.52);
+    }
+  }
+
+  function setMixerValue(kind,value){
+    const v=Math.max(0,Math.min(100,Number(value)||0));
+    const normalized=v/100;
+
+    if(kind==="music"){
+      musicVolume=normalized;
+      $("musicVolumeValue").textContent=Math.round(v)+"%";
+      if(audioCtx&&musicGain&&!soundMuted){
+        musicGain.gain.cancelScheduledValues(audioCtx.currentTime);
+        musicGain.gain.setTargetAtTime(musicVolume,audioCtx.currentTime,.035);
+      }
+    }else if(kind==="crowd"){
+      crowdVolume=normalized;
+      $("crowdVolumeValue").textContent=Math.round(v)+"%";
+      if(audioCtx&&fxGain&&!soundMuted){
+        fxGain.gain.cancelScheduledValues(audioCtx.currentTime);
+        fxGain.gain.setTargetAtTime(crowdVolume,audioCtx.currentTime,.035);
+      }
+    }else if(kind==="dealer"){
+      dealerVolume=normalized;
+      $("dealerVolumeValue").textContent=Math.round(v)+"%";
+    }
+  }
+
+  function setSoundMuted(muted){
+    soundMuted=!!muted;
+    if(masterGain&&audioCtx){
+      masterGain.gain.cancelScheduledValues(audioCtx.currentTime);
+      masterGain.gain.setTargetAtTime(soundMuted?0:.88,audioCtx.currentTime,.04);
+    }
+    if(soundMuted && "speechSynthesis" in window) speechSynthesis.cancel();
+    if(soundMuted){
+      activeCrowdSamples.forEach(src=>{try{src.stop()}catch(_){}});
+      activeCrowdSamples.clear();
+    }
+    if(!soundMuted){
+      ensureAudio();
+    }
+    $("soundToggle").textContent=soundMuted?"SOUND OFF":"SOUND ON";
+  }
+  // ------------------------------------------------------
+
+  function log(text){
+    const d=document.createElement("div");d.textContent=text;$("log").prepend(d);
+    while($("log").children.length>7)$("log").lastElementChild.remove();
+  }
+  function makeDeck(){
+    deck=[];
+    nextCardId=1;
+    for(const s of suits)for(const r of ranks)deck.push({r,s,id:nextCardId++});
+    deck.push({r:"Joker",s:"★",id:nextCardId++},{r:"Joker",s:"★",id:nextCardId++});
+    for(let i=deck.length-1;i>0;i--){
+      const j=Math.floor(Math.random()*(i+1));
+      [deck[i],deck[j]]=[deck[j],deck[i]];
+    }
+  }
+  function deal(){
+    ensureAudio();
+    makeDeck();hand=[];cpu=[];trick=[];tricks=[0,0];contract=null;trump=null;current=0;phase="bidding";
+    for(let i=0;i<10;i++){hand.push(deck.pop());cpu.push(deck.pop())}
+    $("bidbox").style.display="block";
+    $("deal").disabled=true;$("newHand").disabled=true;
+    const currentHandNumber=handNo++;
+    $("handNo").textContent=currentHandNumber;
+    log("--- New Hand ---");log("Dealer: You");log("Choose your bid or pass.");
+    render();
+    dealerSay(`Hand number ${currentHandNumber}. Bidding begins.`);
+  }
+  function sortCards(a,b){
+    if(a.r==="Joker")return 1;if(b.r==="Joker")return -1;
+    return suits.indexOf(a.s)-suits.indexOf(b.s)||ranks.indexOf(a.r)-ranks.indexOf(b.r);
+  }
+  function red(s){return s==="♥"||s==="♦"}
+  function cardEl(c,click=false,index=-1){
+    const e=document.createElement(click?"button":"div");
+    e.className="card "+(red(c.s)?"red ":"");
+    e.dataset.cardId=String(c.id ?? "");
+    e.innerHTML=`<span class="rank">${c.r}</span><span class="suit">${c.s}</span><span class="rank bottom">${index>=0?index+1:c.r}</span>`;
+    if(click){
+      e.type="button";e.title=`Play card ${index+1}`;
+      e.addEventListener("click",()=>play(c,e));
+    }
+    return e;
+  }
+  function legal(c){
+    if(!trick.length)return true;
+    const lead=trick[0].c.s;
+    if(c.r==="Joker"||c.s===lead)return true;
+    return !hand.some(x=>x.s===lead);
+  }
+  function wait(ms){ return new Promise(resolve=>setTimeout(resolve, ms)); }
+  function handCursor(){ return $("handCursor"); }
+  function setHandPose(pose){
+    const el=handCursor();
+    el.classList.remove("point","pinch");
+    el.classList.add(pose);
+  }
+  function placeHandAt(x,y,duration=0){
+    const el=handCursor();
+    const pinch=el.classList.contains("pinch");
+    const offsetX=pinch?44:39;
+    const offsetY=pinch?24:10;
+    el.style.transition=duration?`transform ${duration}ms cubic-bezier(.22,.9,.25,1), opacity .18s ease`:"opacity .18s ease";
+    el.style.transform=`translate(${x-offsetX}px,${y-offsetY}px)`;
+  }
+  function showHandCursor(){
+    const el=handCursor();
+    el.classList.add("visible");
+  }
+  function findHandCardElement(card){
+    return $("hand").querySelector(`[data-card-id="${card.id}"]`);
+  }
+  async function animateCardPlay(card, sourceEl){
+    if(!sourceEl) return;
+    const cursor=handCursor();
+    const trickBox=$("trick");
+    const cardRect=sourceEl.getBoundingClientRect();
+    const trickRect=trickBox.getBoundingClientRect();
+    const targetX=trickRect.left + trickRect.width/2 + (trick.length?34:-34);
+    const targetY=trickRect.top + trickRect.height/2 + 8;
+
+    cursorLocked=true;
+    showHandCursor();
+    setHandPose("point");
+    placeHandAt(cardRect.left + cardRect.width*.72, cardRect.top + cardRect.height*.18, 180);
+    sourceEl.classList.add("selected-by-hand");
+    await wait(240);
+
+    setHandPose("pinch");
+    placeHandAt(cardRect.left + cardRect.width*.56, cardRect.top + cardRect.height*.44, 170);
+    await wait(180);
+
+    const ghost=sourceEl.cloneNode(true);
+    ghost.classList.add("flying-card","carry");
+    ghost.style.width=`${cardRect.width}px`;
+    ghost.style.height=`${cardRect.height}px`;
+    ghost.style.left=`${cardRect.left}px`;
+    ghost.style.top=`${cardRect.top}px`;
+    ghost.style.transform="translate(0,0) rotate(0deg) scale(1)";
+    document.body.appendChild(ghost);
+
+    sourceEl.style.visibility="hidden";
+    placeHandAt(cardRect.left + cardRect.width*.56, cardRect.top + cardRect.height*.44, 0);
+    await wait(30);
+
+    ghost.style.left=`${targetX - cardRect.width*.5}px`;
+    ghost.style.top=`${targetY - cardRect.height*.5}px`;
+    ghost.style.transform="translate(0,-8px) rotate(-7deg) scale(.92)";
+    placeHandAt(targetX + 10, targetY + 8, 540);
+    await wait(570);
+
+    ghost.remove();
+    sourceEl.style.visibility="";
+    sourceEl.classList.remove("selected-by-hand");
+    cursorLocked=false;
+    setHandPose("point");
+    placeHandAt(lastPointerX,lastPointerY,120);
+  }
+
+  function render(){
+    $("us").textContent=scores[0]+" / 500";
+    $("them").textContent=scores[1]+" / 500";
+    const names={"♠":"Spades","♥":"Hearts","♦":"Diamonds","♣":"Clubs"};
+    $("trumpName").textContent=trump==="NT"?"No Trumps":trump?names[trump]:"—";
+    $("trumpSymbol").textContent=trump==="NT"?"NT":trump||"♠";
+
+    $("hand").replaceChildren(...hand.slice().sort(sortCards).map((c,i)=>cardEl(c,phase==="play"&&current===0&&legal(c),i)));
+
+    const ch=$("cpuHand");ch.replaceChildren();
+    cpu.forEach(()=>{const e=document.createElement("div");e.className="card back";ch.append(e)});
+
+    $("trick").replaceChildren(...trick.map(t=>{
+      const w=document.createElement("div");w.className="played";
+      w.append(cardEl(t.c));
+      const label=document.createElement("div");label.textContent=t.p===0?"YOU":"CPU";w.append(label);
+      return w;
+    }));
+
+    $("status").innerHTML=
+      phase==="bidding"?'YOU <span class="state">| Your Bid</span>':
+      phase==="play"?(current===0?'YOU <span class="state" style="color:#39b9ff">| Your Turn</span>':'CPU <span class="state">| Thinking…</span>'):
+      phase==="done"?'Hand Complete':'CPU <span class="state">| Pass</span>';
+  }
+  function submitBid(){
+    if(phase!=="bidding")return;
+    const v=$("bid").value;
+    if(v==="pass"){
+      contract={level:6,suit:"♠",by:1};
+      trump="♠";
+      log("You pass. CPU takes 6 Spades.");
+      dealerSay("Player passes.",0);
+      dealerSay("CPU bids 6 Spades.",650);
+      dealerSay("Trump is Spades.",1350);
+    }else{
+      contract={level:+v,suit:$("suit").value,by:0};
+      trump=contract.suit==="NT"?null:contract.suit;
+      const spokenTrump=spokenSuit(contract.suit);
+      log(`You bid ${v} ${contract.suit}.`);
+      dealerSay(`Player bids ${v} ${spokenTrump}.`,0);
+      dealerSay("CPU passes.",700);
+      dealerSay(`Trump is ${spokenTrump}.`,1350);
+    }
+    phase="play";$("bidbox").style.display="none";render();cpuTurn();
+  }
+  function commitHumanPlay(c){
+    hand.splice(hand.indexOf(c),1);
+    trick.push({p:0,c});
+    crowdReactionForCard(c);
+    dealerSay(cardName(c)+"!",420);
+    render();
+    advance();
+  }
+  async function play(c,sourceEl=null){
+    if(phase!=="play"||current!==0||!legal(c)||isAnimatingPlay)return;
+    const actualEl=sourceEl || findHandCardElement(c);
+    if(actualEl){
+      isAnimatingPlay=true;
+      try{
+        await animateCardPlay(c,actualEl);
+      }finally{
+        isAnimatingPlay=false;
+      }
+    }
+    if(phase!=="play"||current!==0)return;
+    if(!hand.includes(c))return;
+    commitHumanPlay(c);
+  }
+  function strength(c,lead){
+    if(c.r==="Joker")return 1000;
+    const v=ranks.indexOf(c.r);
+    if(trump&&c.s===trump)return 500+v+(c.r==="J"?20:0);
+    if(c.s===lead)return 200+v;
+    return v;
+  }
+  function advance(){
+    if(trick.length===2){setTimeout(resolveTrick,450);return}
+    current=1;render();cpuTurn();
+  }
+  function cpuTurn(){
+    if(phase!=="play"||current!==1)return;
+    setTimeout(()=>{
+      const choices=cpu.filter(c=>{
+        if(!trick.length)return true;
+        const lead=trick[0].c.s;
+        return c.r==="Joker"||c.s===lead||!cpu.some(x=>x.s===lead);
+      });
+      const c=choices[Math.floor(Math.random()*choices.length)];
+      if(!c){
+        current=0;
+        render();
+        return;
+      }
+      cpu.splice(cpu.indexOf(c),1);
+      trick.push({p:1,c});
+      crowdReactionForCard(c);
+      dealerSay(cardName(c)+"!",420);
+
+      // If CPU is responding to your card, the trick is complete.
+      // If CPU is leading a new trick, hand control back to the human.
+      if(trick.length===2){
+        render();
+        resolveTrick();
+      }else{
+        current=0;
+        render();
+      }
+    },500);
+  }
+  function showResult(winner){
+    const human=winner===0;
+    $("resultTitle").textContent=human?"YOU WIN THE TRICK":"CPU WINS THE TRICK";
+    $("resultDetail").textContent=human?"You take the trick.":"CPU takes the trick.";
+    $("resultAnimals").textContent=human?"🐶 🃏 🐶":"🐱 🃏 🐱";
+    $("resultAnimals").style.filter=human?"hue-rotate(165deg) saturate(1.5)":"hue-rotate(315deg) saturate(2)";
+    $("trickResult").classList.add("show");
+    $("trickResult").setAttribute("aria-hidden","false");
+    setTimeout(()=>{
+      $("trickResult").classList.remove("show");
+      $("trickResult").setAttribute("aria-hidden","true");
+    },1100);
+  }
+  function resolveTrick(){
+    if(trick.length<2)return;
+    const lead=trick[0].c.s;
+    const w=strength(trick[0].c,lead)>=strength(trick[1].c,lead)?trick[0]:trick[1];
+    tricks[w.p]++;
+    log((w.p===0?"You":"CPU")+" win the trick.");
+    showResult(w.p);
+    if(w.p===0) playHumanCrowd("cheer",1.0);
+    else playHumanCrowd("subdued",.48);
+    dealerSay(w.p===0?"Player wins the trick!":"CPU wins the trick!",900);
+    trick=[];current=w.p;
+    if(!hand.length){finish();return}
+    render();if(current===1)cpuTurn();
+  }
+  function finish(){
+    const ours=tricks[0],theirs=tricks[1];
+    if(contract.by===0){
+      if(ours>=contract.level){scores[0]+=contract.level*10;log(`Contract made: +${contract.level*10}.`)}
+      else{scores[0]-=contract.level*10;log(`Contract failed: -${contract.level*10}.`)}
+    }else{
+      if(theirs>=contract.level){scores[1]+=contract.level*10;log("CPU makes its contract.")}
+      else{scores[1]-=contract.level*10;log("CPU fails its contract.")}
+    }
+    phase="done";$("newHand").disabled=false;render();
+  }
+
+  $("musicVolume").addEventListener("input",e=>setMixerValue("music",e.target.value));
+  $("crowdVolume").addEventListener("input",e=>setMixerValue("crowd",e.target.value));
+  $("dealerVolume").addEventListener("input",e=>setMixerValue("dealer",e.target.value));
+
+  $("soundMixerToggle").addEventListener("click",e=>{
+    e.stopPropagation();
+    const mixer=$("soundMixer");
+    const collapsed=mixer.classList.toggle("collapsed");
+    const btn=$("soundMixerToggle");
+    btn.textContent=collapsed?"Show Audio Mix":"Hide Audio Mix";
+    btn.setAttribute("aria-expanded",collapsed?"false":"true");
+  });
+
+  $("soundToggle").addEventListener("click",()=>{
+    if(!audioCtx && soundMuted){
+      soundMuted=false;
+      ensureAudio();
+      setSoundMuted(false);
+      return;
+    }
+    if(!audioCtx) ensureAudio();
+    setSoundMuted(!soundMuted);
+  });
+  $("deal").addEventListener("click",deal);
+  $("newHand").addEventListener("click",deal);
+  $("bidBtn").addEventListener("click",submitBid);
+  $("passBtn").addEventListener("click",()=>{$("bid").value="pass";submitBid()});
+  document.querySelectorAll("[data-bid]").forEach(b=>b.addEventListener("click",()=>{$("bid").value=b.dataset.bid}));
+  $("prevTrump").addEventListener("click",()=>{const s=$("suit");s.selectedIndex=(s.selectedIndex+s.options.length-1)%s.options.length});
+  $("nextTrump").addEventListener("click",()=>{const s=$("suit");s.selectedIndex=(s.selectedIndex+1)%s.options.length});
+  $("helpBtn").addEventListener("click",()=>{
+    const p=$("controlsPanel"),hidden=p.style.display==="none";
+    p.style.display=hidden?"block":"none";
+    const btn=$("helpBtn");
+    btn.textContent=hidden?"Hide Help":"Show Help";
+    btn.setAttribute("aria-expanded",hidden?"true":"false");
+  });
+
+  viewport.addEventListener("pointerdown",ensureAudio,{passive:true});
+  document.addEventListener("keydown",ensureAudio,{passive:true});
+
+  viewport.addEventListener("mousemove",e=>{
+    lastPointerX=e.clientX;
+    lastPointerY=e.clientY;
+    if(!cursorLocked){
+      showHandCursor();
+      setHandPose("point");
+      placeHandAt(lastPointerX,lastPointerY,0);
+    }
+  });
+  viewport.addEventListener("mouseenter",()=>{
+    showHandCursor();
+    if(!cursorLocked) placeHandAt(lastPointerX,lastPointerY,0);
+  });
+  viewport.addEventListener("mouseleave",()=>{
+    if(!cursorLocked) handCursor().classList.remove("visible");
+  });
+
+  document.addEventListener("keydown",e=>{
+    if(["SELECT","OPTION","INPUT"].includes(document.activeElement?.tagName))return;
+    const k=e.key.toLowerCase();
+    if(k==="d"&&(phase==="idle"||phase==="done"))return deal();
+    if(k==="h")return $("helpBtn").click();
+    if(k==="m")return $("soundToggle").click();
+    if(phase==="bidding"){
+      if(k==="p"){ $("bid").value="pass";return submitBid() }
+      if(["6","7","8","9"].includes(k)||k==="0"){$("bid").value=k==="0"?"10":k;return}
+      if(k==="arrowleft")return $("prevTrump").click();
+      if(k==="arrowright")return $("nextTrump").click();
+      if(k==="enter")return submitBid();
+    }
+    if(phase==="play"&&current===0){
+      const m={"1":0,"2":1,"3":2,"4":3,"5":4,"6":5,"7":6,"8":7,"9":8,"0":9};
+      if(m[k]!==undefined){
+        const c=hand.slice().sort(sortCards)[m[k]];
+        if(c&&legal(c))play(c);
+      }
+    }
+  });
+
+  setMixerValue("music",$("musicVolume").value);
+  setMixerValue("crowd",$("crowdVolume").value);
+  setMixerValue("dealer",$("dealerVolume").value);
+  render();
+  placeHandAt(lastPointerX,lastPointerY,0);
+  showHandCursor();
+})();
+</script>
+</body>
+</html>
