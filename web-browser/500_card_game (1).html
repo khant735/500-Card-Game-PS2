@@ -1,0 +1,257 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>500 — Card Game</title>
+<style>
+  :root { --felt:#0b5d3b; --felt2:#083f2a; --gold:#e7c66a; --cream:#fffaf0; --red:#b72d2d; }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:system-ui,-apple-system,Segoe UI,sans-serif;background:radial-gradient(circle at 50% 20%,#16835a,var(--felt) 45%,var(--felt2));color:white;min-height:100vh}
+  header{padding:18px 24px;text-align:center}
+  h1{margin:0;color:var(--gold);font-size:clamp(2rem,5vw,3.5rem);letter-spacing:.08em}
+  .sub{opacity:.85}
+  main{width:min(1100px,96vw);margin:auto;padding-bottom:30px}
+  .panel{background:#062d20cc;border:1px solid #ffffff25;border-radius:18px;padding:16px;box-shadow:0 12px 35px #0005}
+  .top{display:grid;grid-template-columns:1fr 1.5fr 1fr;gap:12px;align-items:center}
+  .score{text-align:center}.score strong{display:block;font-size:2rem;color:var(--gold)}
+  #message{text-align:center;font-weight:700;min-height:1.5em}
+  .table{margin-top:14px;display:grid;grid-template-columns:180px 1fr 180px;gap:14px;align-items:center}
+  .seat{text-align:center}.seat .cards{min-height:150px}
+  .center{text-align:center}
+  .trick{min-height:170px;display:flex;justify-content:center;align-items:center;gap:10px}
+  .cards{display:flex;justify-content:center;gap:8px;flex-wrap:wrap}
+  .card{width:82px;height:116px;background:var(--cream);color:#111;border-radius:9px;padding:8px;display:flex;flex-direction:column;justify-content:space-between;box-shadow:0 5px 12px #0006;border:1px solid #ddd;user-select:none}
+  .card.red{color:var(--red)}
+  .card.back{background:repeating-linear-gradient(45deg,#173e8a,#173e8a 7px,#d9e5ff 8px,#d9e5ff 10px);border:5px solid white}
+  .card.clickable{cursor:pointer;transform:translateY(0);transition:.12s;outline:2px solid transparent}
+  .card.clickable::after{content:"";display:block}
+  kbd{background:#fff;color:#222;border-radius:4px;padding:1px 5px;font:600 .8em monospace}
+  .card.clickable:hover{transform:translateY(-8px);box-shadow:0 10px 18px #0008}
+  .rank{font-weight:800;font-size:1.4rem}.suit{font-size:2rem;text-align:center}.bottom{margin-top:16px}
+  button{border:0;border-radius:10px;padding:11px 16px;font-weight:800;cursor:pointer;background:var(--gold);color:#1b261f}
+  button.secondary{background:#ffffff18;color:white;border:1px solid #ffffff35}
+  button:disabled{opacity:.45;cursor:not-allowed}
+  .controls{display:flex;justify-content:center;gap:10px;flex-wrap:wrap}
+  .bidbox{display:none;margin-top:12px;text-align:center}.bidbox.show{display:block}
+  select{padding:10px;border-radius:9px;border:0;font-weight:700}
+  .log{margin-top:14px;max-height:130px;overflow:auto;font-size:.9rem;opacity:.9}
+  @media(max-width:760px){.table{grid-template-columns:1fr}.seat{order:2}.center{order:1}.seat.right{order:3}.cards{min-height:auto}.card{width:64px;height:92px;padding:5px}.suit{font-size:1.5rem}.rank{font-size:1rem}}
+</style>
+</head>
+<body>
+<header><h1>500</h1><div class="sub">A streamlined four-player trick-taking game</div></header>
+<main>
+  <section class="panel top">
+    <div class="score">You & Partner<strong id="us">0</strong></div>
+    <div id="message">Deal to start a hand.</div>
+    <div class="score">Opponents<strong id="them">0</strong></div>
+  </section>
+
+  <section class="panel table">
+    <div class="seat">
+      <b>West</b><div id="west" class="cards"></div>
+    </div>
+    <div class="center">
+      <div><b>Current trick</b></div>
+      <div id="trick" class="trick"></div>
+      <div id="bidbox" class="bidbox">
+        <label>Choose your bid:
+          <select id="bid">
+            <option value="pass">Pass</option>
+            <option value="6">6</option><option value="7">7</option>
+            <option value="8">8</option><option value="9">9</option>
+            <option value="10">10</option>
+          </select>
+        </label>
+        <select id="suit">
+          <option value="♠">♠ Spades</option><option value="♥">♥ Hearts</option>
+          <option value="♦">♦ Diamonds</option><option value="♣">♣ Clubs</option>
+          <option value="NT">No Trumps</option>
+        </select>
+        <button id="bidBtn">Bid</button>
+      </div>
+    </div>
+    <div class="seat right">
+      <b>East</b><div id="east" class="cards"></div>
+    </div>
+  </section>
+
+  <section class="panel bottom">
+    <div style="text-align:center"><b>Your hand</b></div>
+    <div id="hand" class="cards" style="margin:12px 0"></div>
+    <div class="controls">
+      <button id="deal">Deal</button>
+      <button id="newHand" class="secondary" disabled>New hand</button>
+      <button id="help" class="secondary">Controls</button>
+    </div>
+    <div id="helpbox" class="log" style="display:none">
+      <b>Mouse:</b> click cards to play; use the bid controls during bidding.<br>
+      <b>Keyboard:</b> <kbd>D</kbd> deal/new hand, <kbd>1–7</kbd> play a card from your hand,
+      <kbd>P</kbd> pass, <kbd>6–0</kbd> choose a bid of 6–10, <kbd>ArrowLeft/Right</kbd> change suit,
+      <kbd>Enter</kbd> submit the bid, <kbd>H</kbd> toggle help.
+    </div>
+    <div id="log" class="log"></div>
+  </section>
+</main>
+
+<script>
+const suits=["♠","♥","♦","♣"], ranks=["4","5","6","7","8","9","10","J","Q","K","A"];
+const players=["South","West","North","East"];
+let deck=[], hands=[[],[],[],[]], scores=[0,0], current=0, leader=0, trick=[], trump=null;
+let contract=null, bidTurn=0, bidding=true, tricksWon=[0,0,0,0];
+
+const $=id=>document.getElementById(id);
+const red=s=>s==="♥"||s==="♦";
+function card(r,s){return {r,s}};
+function makeDeck(){
+  deck=[]; for(const s of suits) for(const r of ranks) deck.push(card(r,s));
+  // 43-card 500 deck: remove 4,5,6,7 of each suit, then add jokers.
+  deck=deck.filter(c=>!["4","5","6","7"].includes(c.r));
+  deck.push(card("Joker","🃏"),card("Joker","🃏"));
+  for(let i=deck.length-1;i;i--){let j=Math.floor(Math.random()*(i+1));[deck[i],deck[j]]=[deck[j],deck[i]]}
+}
+function deal(){
+  makeDeck(); hands=[[],[],[],[]]; scores[0]=scores[0]||0;scores[1]=scores[1]||0;
+  for(let i=0;i<10;i++) for(let p=0;p<4;p++) hands[p].push(deck.pop());
+  current=0;leader=0;trick=[];tricksWon=[0,0,0,0];contract=null;bidding=true;bidTurn=0;trump=null;
+  render(); log("New hand dealt. Bidding starts with you.");
+  $("bidbox").classList.add("show"); $("newHand").disabled=true; $("deal").disabled=true;
+}
+function rankVal(r){return ["4","5","6","7","8","9","10","J","Q","K","A"].indexOf(r)}
+function renderCard(c,click=false){
+  const d=document.createElement("div");d.className="card "+(red(c.s)?"red ":"")+(click?"clickable":"");
+  d.innerHTML=`<div class="rank">${c.r}</div><div class="suit">${c.s}</div><div class="rank" style="text-align:right">${c.r}</div>`;
+  if(click)d.onclick=()=>playCard(c);
+  return d;
+}
+function render(){
+  $("us").textContent=scores[0];$("them").textContent=scores[1];
+  $("hand").replaceChildren(...hands[0].slice().sort(sortCards).map(c=>renderCard(c,!bidding&&current===0&&legal(c))));
+  $("west").replaceChildren(...hands[1].map(()=>{let d=document.createElement("div");d.className="card back";return d}));
+  $("east").replaceChildren(...hands[3].map(()=>{let d=document.createElement("div");d.className="card back";return d}));
+  $("trick").replaceChildren(...trick.map(x=>{let wrap=document.createElement("div");wrap.append(renderCard(x.c));let lab=document.createElement("small");lab.textContent=players[x.p];wrap.append(lab);return wrap}));
+  $("message").textContent=bidding?"Bidding in progress…":`Your turn: ${players[current]}`;
+}
+function sortCards(a,b){return (suits.indexOf(a.s)-suits.indexOf(b.s))||rankVal(a.r)-rankVal(b.r)}
+function legal(c){
+  if(c.r==="Joker") return true;
+  if(!trick.length)return true;
+  const lead=trick[0].c.s;
+  if(c.s===lead)return true;
+  return !hands[0].some(x=>x.s===lead);
+}
+function bid(){
+  const b=$("bid").value;
+  if(b==="pass"){log("You pass."); $("bidbox").classList.remove("show"); startPlay();return}
+  contract={level:+b,suit:$("suit").value,by:0};trump=contract.suit==="NT"?null:contract.suit;
+  log(`You bid ${b} ${contract.suit}.`);$("bidbox").classList.remove("show");startPlay();
+}
+function startPlay(){bidding=false;current=0;leader=0;render();aiTurn()}
+function playCard(c){
+  if(bidding||current!==0||!legal(c))return;
+  takeCard(0,c); advance();
+}
+function takeCard(p,c){
+  const i=hands[p].indexOf(c);hands[p].splice(i,1);trick.push({p,c});render();
+}
+function advance(){
+  if(trick.length===4){setTimeout(resolveTrick,550);return}
+  current=(current+1)%4;render();aiTurn();
+}
+function aiTurn(){
+  if(bidding||current===0)return;
+  setTimeout(()=>{
+    let h=hands[current], choices=h.filter(legalForPlayer);
+    let c=choices[Math.floor(Math.random()*choices.length)];
+    takeCard(current,c);advance();
+  },500);
+}
+function legalForPlayer(c){
+  if(!trick.length)return true;
+  const lead=trick[0].c.s;
+  return c.s===lead || !hands[current].some(x=>x.s===lead);
+}
+function effectiveSuit(c){
+  if(c.r==="Joker")return trump||"NT";
+  if(trump&&c.r==="J"&&c.s===trump)return trump;
+  if(trump&&c.r==="J"){
+    const sameColor=(trump==="♠"&&c.s==="♣")||(trump==="♣"&&c.s==="♠")||(trump==="♥"&&c.s==="♦")||(trump==="♦"&&c.s==="♥");
+    if(sameColor)return trump;
+  }
+  return c.s;
+}
+function strength(c,lead){
+  if(c.r==="Joker")return 100;
+  let s=effectiveSuit(c);
+  if(trump&&s===trump)return 60+rankVal(c.r)+(c.r==="J"?10:0);
+  if(s===lead)return 30+rankVal(c.r);
+  return rankVal(c.r);
+}
+function resolveTrick(){
+  const lead=effectiveSuit(trick[0].c);
+  let winner=trick.reduce((a,b)=>strength(a.c,lead)>=strength(b.c,lead)?a:b);
+  tricksWon[winner.p]++;leader=winner.p;log(`${players[winner.p]} wins the trick.`);
+  trick=[];current=leader;
+  if(hands[0].length===0){finishHand();return}
+  render();aiTurn();
+}
+function finishHand(){
+  const ours=tricksWon[0]+tricksWon[2], theirs=tricksWon[1]+tricksWon[3];
+  if(contract){ if(ours>=contract.level){scores[0]+=contract.level*10;log(`Contract made: +${contract.level*10}.`)}else{scores[0]-=contract.level*10;log(`Contract failed: -${contract.level*10}.`)}} 
+  else {log("No contract.");}
+  if(ours>theirs&&!contract)scores[0]+=10;
+  render();$("message").textContent=`Hand over — you won ${ours} tricks to ${theirs}.`;$("newHand").disabled=false;
+}
+$("deal").onclick=deal;
+$("newHand").onclick=deal;
+$("bidBtn").onclick=bid;
+$("help").onclick=()=>{$("helpbox").style.display=$("helpbox").style.display==="none"?"block":"none"};
+
+document.addEventListener("keydown", e=>{
+  const k=e.key.toLowerCase();
+
+  // H toggles the controls/help panel.
+  if(k==="h"){ $("helpbox").style.display=$("helpbox").style.display==="none"?"block":"none"; return; }
+
+  // Deal a new hand.
+  if(k==="d"){
+    if(!$("deal").disabled) deal();
+    else if(!$("newHand").disabled) deal();
+    return;
+  }
+
+  if(bidding){
+    // P = pass.
+    if(k==="p"){ $("bid").value="pass"; bid(); return; }
+
+    // Number keys select contract level. 0 means 10.
+    const levels={"6":"6","7":"7","8":"8","9":"9","0":"10"};
+    if(levels[k]){
+      $("bid").value=levels[k];
+      return;
+    }
+
+    // Arrow keys cycle through trump choices.
+    if(k==="arrowleft" || k==="arrowright"){
+      const sel=$("suit"), n=sel.options.length;
+      sel.selectedIndex=(sel.selectedIndex+(k==="arrowright"?1:-1)+n)%n;
+      return;
+    }
+
+    // Enter submits the current bid.
+    if(k==="enter"){ bid(); return; }
+  } else if(current===0 && !bidding){
+    // Number keys play the corresponding visible card.
+    // 1–7 map to cards; 8,9,0 are also accepted for cards 8–10.
+    const nums={"1":0,"2":1,"3":2,"4":3,"5":4,"6":5,"7":6,"8":7,"9":8,"0":9};
+    if(nums[k] !== undefined){
+      const cards=hands[0].slice().sort(sortCards);
+      const c=cards[nums[k]];
+      if(c && legal(c)) playCard(c);
+    }
+  }
+});
+</script>
+</body>
+</html>
