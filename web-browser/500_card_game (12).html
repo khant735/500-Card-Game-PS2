@@ -1,0 +1,489 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>500 — Casino Table</title>
+<style>
+:root{
+  --felt:#07502f;--felt-dark:#033521;--gold:#d4ad50;--gold-light:#f0d47e;
+  --black:#080a09;--red:#c72f32;--blue:#35b7ff;--paper:#f7f0df;
+}
+*{box-sizing:border-box}
+html,body{margin:0;min-height:100%;background:#17120d}
+body{
+  color:#fff;font-family:Georgia,"Times New Roman",serif;
+  overflow-x:hidden;
+}
+body:before{
+  content:"";position:fixed;inset:0;z-index:-3;
+  background:
+    radial-gradient(circle at 50% 45%,#5b3218 0,#29170c 45%,#090806 100%);
+}
+body:after{
+  content:"";position:fixed;inset:0;z-index:-2;pointer-events:none;
+  background:radial-gradient(ellipse at center,transparent 35%,rgba(0,0,0,.72) 100%);
+}
+.game{width:min(1540px,100%);margin:auto;padding:10px 14px 16px}
+.casino-table{
+  position:relative;min-height:790px;overflow:hidden;border-radius:52px;
+  padding:10px 12px 112px;
+  background:
+    radial-gradient(ellipse at 50% 45%,#087044 0,#075532 38%,#043b25 73%,#022b1b 100%);
+  border:12px solid #17120e;
+  box-shadow:0 0 0 2px #5d451f,0 0 0 5px #a57d31,0 24px 65px #000c,
+             inset 0 0 80px rgba(0,0,0,.45);
+}
+.casino-table:before{
+  content:"";position:absolute;inset:25px;border:2px solid #bd9747;
+  border-radius:36px;box-shadow:inset 0 0 0 1px rgba(255,255,255,.15);pointer-events:none;
+}
+.casino-table:after{
+  content:"";position:absolute;inset:40px;opacity:.12;pointer-events:none;
+  background-image:radial-gradient(#fff 0.6px,transparent .7px);
+  background-size:4px 4px;border-radius:30px;
+}
+.panel{
+  position:relative;z-index:20;background:linear-gradient(145deg,#121411f7,#050605f5);
+  border:2px solid #9c762d;border-radius:12px;box-shadow:0 7px 18px #000b,inset 0 0 0 1px #fff2;
+}
+.panel h2{
+  margin:0;padding:7px 9px 5px;text-align:center;color:var(--gold-light);
+  font-size:15px;border-bottom:1px solid #9d783266;letter-spacing:.04em;
+}
+.scoreboard{position:absolute;left:12px;top:12px;width:178px}
+.score-row{padding:5px 10px;border-bottom:1px solid #9d783244;display:flex;justify-content:space-between;font-size:14px}
+.score-row.you{color:var(--blue)}.score-row.cpu{color:#ff4d4d}
+.handno{text-align:center;padding:5px;font-size:13px}
+.gamelog{position:absolute;left:12px;top:158px;width:200px;height:156px}
+#log{height:112px;padding:6px 9px;overflow:auto;font:12px/1.3 Georgia,serif;color:#eee}
+#log div{padding:2px 0}
+.trump-panel{position:absolute;right:12px;top:12px;width:178px;height:176px;text-align:center}
+.trump-name{font-size:15px;padding-top:6px}.trump-symbol{font-size:40px;line-height:1.0;color:#f1d77d;text-shadow:0 3px 8px #000}
+.controls-panel{position:absolute;right:12px;top:158px;width:200px;min-height:175px}
+.controls{padding:7px 10px;font-size:12px;line-height:1.55}
+.controls b{color:#f4d56f}
+.help-btn{position:absolute;right:28px;top:350px;z-index:25}
+.btn{
+  border:2px solid #b48734;border-radius:8px;background:linear-gradient(#222725,#080a09);
+  color:#f7edce;padding:9px 14px;font-weight:bold;cursor:pointer;
+  box-shadow:0 4px 10px #0008,inset 0 0 0 1px #fff1;
+}
+.btn:hover{border-color:#f1d47c;filter:brightness(1.15)}
+.btn:disabled{opacity:.45;cursor:not-allowed;filter:none}
+.deal{background:linear-gradient(#17415c,#061b2b);font-size:18px;min-width:180px}
+.pass{background:linear-gradient(#8d302e,#4b1111)}
+.bid{background:linear-gradient(#153b2b,#061a12);min-width:80px}
+.top-status{
+  position:absolute;z-index:20;top:13px;left:50%;transform:translateX(-50%);
+  width:min(380px,40vw);text-align:center;padding:9px 16px;
+  font-size:21px;border-radius:10px;
+}
+.top-status .cpu{color:#fff}.top-status .state{color:#ff4b4b}
+.cpu-hand{
+  position:absolute;z-index:10;top:58px;left:50%;transform:translateX(-50%);
+  width:min(560px,44vw);height:125px;display:flex;justify-content:center;align-items:flex-start;
+}
+.card{width:92px;height:138px;border-radius:8px;border:1px solid #c9c0ae;
+  background:
+    linear-gradient(135deg,#fffdf7,#eee7d7 50%,#fffdf8);
+  color:#111;display:flex;flex-direction:column;justify-content:space-between;
+  padding:6px;box-shadow:0 5px 13px #0009;position:relative;
+  font-family:Georgia,"Times New Roman",serif;flex:0 0 auto;
+}
+.card:after{content:"";position:absolute;inset:4px;border:1px solid #0002;border-radius:5px}
+.rank{font-weight:bold;font-size:16px;position:relative;z-index:2}
+.suit{font-size:42px;text-align:center;position:relative;z-index:2}
+.bottom{text-align:right}
+.red{color:#ae2228}
+.back{
+  height:124px;width:68px;margin-left:-18px;
+  background:
+    repeating-linear-gradient(45deg,#a82429 0,#a82429 5px,#f3dfd3 5px,#f3dfd3 7px);
+  border:5px solid #f4eadb;color:#fff;align-items:center;justify-content:center;
+}
+.back:first-child{margin-left:0}
+.back span{font:bold 10px Arial;background:#9c2228;border:1px solid #f3dfd3;padding:4px;transform:rotate(-18deg)}
+.emblem{
+  position:absolute;z-index:2;left:50%;top:220px;transform:translateX(-50%);
+  width:min(520px,42vw);height:220px;border:3px solid #bc9545;border-radius:50%;
+  box-shadow:inset 0 0 0 2px #76571e,0 0 0 1px #ffffff18;
+  text-align:center;color:#c9a75944;
+}
+.emblem-main{font-size:92px;font-weight:bold;line-height:1;margin-top:35px;letter-spacing:.06em}
+.emblem-sub{font-size:20px;letter-spacing:.2em}.emblem-suits{font-size:25px;margin-top:10px;color:#c9a75955}
+.played-trick{
+  position:absolute;z-index:18;left:50%;top:360px;transform:translate(-50%,-50%);
+  display:flex;gap:22px;min-height:125px;align-items:center;
+}
+.played{text-align:center;font:13px Arial;color:#ddd}
+.bidbox{
+  position:absolute;z-index:30;left:50%;top:465px;transform:translateX(-50%);
+  width:min(680px,55vw);background:linear-gradient(#101210f5,#050605f5);
+  border:2px solid #9c762d;border-radius:10px;padding:9px;box-shadow:0 7px 18px #000b;
+}
+.bidline{display:flex;justify-content:center;gap:9px;align-items:center}
+.bidbox select{background:#111;color:#f7edce;border:1px solid #9c762d;border-radius:7px;padding:8px}
+.bidbox .label{font-size:14px;color:#e4cb83;margin-right:2px}
+.player-area{
+  position:absolute;z-index:20;left:50%;bottom:78px;transform:translateX(-50%);
+  width:min(1250px,84vw);
+}
+.player-label{
+  width:max-content;margin:auto;background:linear-gradient(#111412,#050605);
+  border:2px solid #9c762d;border-radius:9px;padding:8px 28px;font-size:20px;
+}
+.player-label .you{color:var(--blue)}
+.hand{
+  display:flex;justify-content:center;align-items:flex-end;gap:2px;
+  min-height:122px;margin-top:-1px;
+}
+.hand .card{margin-left:-39px;cursor:pointer;transition:.13s transform,.13s margin}
+.hand .card:first-child{margin-left:0}
+.hand .card:hover,.hand .card:focus{transform:translateY(-19px);margin-left:-28px;margin-right:9px;z-index:100;outline:2px solid #f1d47c}
+.actionbar{
+  position:absolute;z-index:30;left:12px;right:12px;bottom:12px;height:62px;
+  display:flex;align-items:center;justify-content:space-between;gap:12px;
+  padding:10px 18px;background:linear-gradient(145deg,#111310f7,#050605f7);
+  border:2px solid #9c762d;border-radius:12px;box-shadow:0 7px 18px #000b;
+}
+.rules{font-size:13px;color:#f2dfaa;text-align:center;flex:1}
+.rules span{margin:0 22px;color:#fff}
+.action-buttons{display:flex;gap:8px}
+kbd{background:#eee;color:#111;border-radius:3px;padding:1px 5px;font:12px monospace}
+@media(max-width:850px){
+  .scoreboard,.gamelog,.trump-panel,.controls-panel{position:relative;left:auto;right:auto;top:auto;width:100%;height:auto;margin-bottom:10px}
+  .casino-table{padding-top:10px}
+  .top-status{position:relative;top:auto;left:auto;transform:none;margin:auto;width:90%}
+  .cpu-hand,.emblem,.played-trick,.bidbox,.player-area{position:relative;left:auto;top:auto;bottom:auto;transform:none;margin:12px auto}
+  .emblem{width:80%;height:190px}.emblem-main{font-size:80px}
+  .actionbar{position:relative;left:auto;right:auto;bottom:auto;height:auto;margin-top:12px}
+}
+@media(max-width:650px){
+  .game{padding:4px}.casino-table{border-width:7px;border-radius:28px;min-height:800px;padding-bottom:110px}
+  .card{width:62px;height:94px;padding:5px}.suit{font-size:24px}.rank{font-size:11px}
+  .hand .card{margin-left:-30px}.cpu-hand{height:100px}.back{width:45px;height:62px;margin-left:-17px}
+  .emblem{height:145px}.emblem-main{font-size:58px;margin-top:25px}.emblem-sub{font-size:14px}
+  .bidbox{width:95%}.bidline{flex-wrap:wrap}.actionbar{flex-direction:column}
+  .rules{font-size:12px}.rules span{margin:0 5px}.deal{min-width:0}
+}
+</style>
+
+<style id="reference-match-overrides">
+/* Reference composition: small HUD panels, open felt center, controls above the hand. */
+.casino-table{
+  min-height:900px!important;
+  padding:10px 12px 112px!important;
+}
+.scoreboard{
+  left:13px!important;top:12px!important;width:165px!important;
+}
+.gamelog{
+  left:13px!important;top:145px!important;width:185px!important;height:138px!important;
+}
+.gamelog h2,.scoreboard h2,.trump-panel h2,.controls-panel h2{
+  font-size:14px!important;padding:6px 8px 5px!important;
+}
+.score-row{
+  padding:4px 9px!important;font-size:13px!important;
+}
+.handno{
+  padding:4px!important;font-size:12px!important;
+}
+#log{
+  height:95px!important;padding:5px 8px!important;font-size:11px!important;line-height:1.28!important;
+}
+.trump-panel{
+  right:13px!important;top:12px!important;width:165px!important;height:125px!important;
+}
+.trump-name{font-size:13px!important;padding-top:5px!important}
+.trump-symbol{font-size:38px!important}
+.controls-panel{
+  right:13px!important;top:145px!important;width:185px!important;min-height:150px!important;
+}
+.controls{
+  padding:6px 9px!important;font-size:11px!important;line-height:1.48!important;
+}
+.help-btn{
+  right:22px!important;top:304px!important;z-index:80!important;
+  padding:6px 10px!important;font-size:11px!important;
+}
+.top-status{
+  top:12px!important;width:360px!important;padding:7px 12px!important;font-size:18px!important;
+}
+.cpu-hand{
+  top:52px!important;height:112px!important;width:610px!important;
+}
+.cpu-hand .back{
+  width:64px!important;height:116px!important;margin-left:-22px!important;
+}
+.emblem{
+  top:215px!important;width:500px!important;height:205px!important;
+}
+.emblem-main{font-size:88px!important;margin-top:28px!important}
+.emblem-sub{font-size:19px!important}
+.emblem-suits{font-size:20px!important;margin-top:7px!important}
+.played-trick{
+  top:370px!important;
+}
+.bidbox{
+  top:448px!important;width:560px!important;padding:7px!important;
+}
+.bidline{gap:6px!important}
+.bidbox select{padding:6px!important}
+.bidbox .btn{padding:6px 10px!important}
+.player-area{
+  bottom:72px!important;width:min(1260px,86vw)!important;
+}
+.player-label{
+  padding:5px 22px!important;font-size:16px!important;
+}
+.hand{
+  min-height:145px!important;margin-top:-4px!important;
+}
+.hand .card{
+  width:86px!important;height:132px!important;margin-left:-43px!important;
+}
+.hand .card:first-child{margin-left:0!important}
+.hand .card:hover,.hand .card:focus{
+  transform:translateY(-15px)!important;margin-left:-31px!important;margin-right:7px!important;
+}
+.actionbar{
+  left:12px!important;right:12px!important;bottom:10px!important;height:58px!important;
+  padding:7px 12px!important;
+}
+.rules{font-size:12px!important}
+.deal{font-size:17px!important;min-width:175px!important;padding:7px 12px!important}
+
+/* The reference keeps the bottom hand visually dominant; never let HUD panels cover it. */
+.scoreboard,.gamelog,.trump-panel,.controls-panel,.help-btn,.top-status{z-index:60!important}
+.cpu-hand,.emblem,.played-trick,.bidbox,.player-area{z-index:30!important}
+.actionbar{z-index:70!important}
+
+@media(max-width:850px){
+  .scoreboard,.gamelog,.trump-panel,.controls-panel{
+    position:absolute!important;
+    transform:scale(.88);
+    transform-origin:top left;
+  }
+  .trump-panel{transform-origin:top right}
+  .controls-panel{transform-origin:top right}
+}
+@media(max-width:650px){
+  .casino-table{min-height:820px!important}
+  .scoreboard{width:140px!important;transform:scale(.8)}
+  .gamelog{width:150px!important;transform:scale(.8)}
+  .trump-panel{width:140px!important;transform:scale(.8)}
+  .controls-panel{width:150px!important;transform:scale(.8)}
+  .hand .card{width:61px!important;height:94px!important;margin-left:-31px!important}
+  .cpu-hand{width:95%!important}
+  .bidbox{width:92%!important}
+}
+</style>
+
+</head>
+<body>
+<div class="game">
+<section class="casino-table">
+
+  <aside class="panel scoreboard">
+    <h2>SCORE</h2>
+    <div class="score-row you"><span>You</span><strong id="us">0 / 500</strong></div>
+    <div class="score-row cpu"><span>CPU</span><strong id="them">0 / 500</strong></div>
+    <div class="handno">Hand: <span id="handNo">1</span></div>
+  </aside>
+
+  <aside class="panel gamelog">
+    <h2>GAME LOG</h2><div id="log"><div>--- New Hand ---</div><div style="color:#32baff">Dealer: You</div><div style="color:#f0d45e">Press DEAL or D to start.</div></div>
+  </aside>
+
+  <aside class="panel trump-panel">
+    <h2>TRUMP</h2><div class="trump-name" id="trumpName">—</div><div class="trump-symbol" id="trumpSymbol">♠</div>
+  </aside>
+
+  <aside class="panel controls-panel">
+    <h2>CONTROLS</h2>
+    <div class="controls">
+      <b>D</b> - Deal / New Hand<br>
+      <b>1-0</b> - Play Card<br>
+      <b>P</b> - Pass (during bidding)<br>
+      <b>6-9 / 0</b> - Bid<br>
+      <b>← →</b> - Change Trump<br>
+      <b>Enter</b> - Submit Bid<br>
+      <b>H</b> - Show / Hide Help
+    </div>
+  </aside>
+
+  <button id="helpBtn" class="btn help-btn">HIDE HELP</button>
+
+  <div class="panel top-status" id="status">CPU <span class="state">| Pass</span></div>
+
+  <div class="cpu-hand" id="cpuHand"></div>
+
+  <div class="emblem">
+    <div class="emblem-main">500</div>
+    <div class="emblem-sub">FIVE HUNDRED</div>
+    <div class="emblem-suits">♠ ♥ ♦ ♣</div>
+  </div>
+
+  <div class="played-trick" id="trick"></div>
+
+  <div class="bidbox" id="bidbox" style="display:none">
+    <div class="bidline">
+      <span class="label">YOUR BID</span>
+      <select id="bid"><option value="pass">Pass</option><option value="6">6</option><option value="7">7</option><option value="8">8</option><option value="9">9</option><option value="10">10</option></select>
+      <span class="label">TRUMP</span>
+      <button class="btn" id="prevTrump">◀</button>
+      <select id="suit"><option value="♠">♠ Spades</option><option value="♥">♥ Hearts</option><option value="♦">♦ Diamonds</option><option value="♣">♣ Clubs</option><option value="NT">No Trumps</option></select>
+      <button class="btn" id="nextTrump">▶</button>
+      <button class="btn" id="bidBtn">SUBMIT BID<br><small>(ENTER)</small></button>
+    </div>
+    <div class="bidline" style="margin-top:7px">
+      <button class="btn pass" id="passBtn">PASS</button>
+      <button class="btn bid" data-bid="6">6</button><button class="btn bid" data-bid="7">7</button><button class="btn bid" data-bid="8">8</button><button class="btn bid" data-bid="9">9</button><button class="btn bid" data-bid="10">10</button>
+    </div>
+  </div>
+
+  <div class="player-area">
+    <div class="player-label"><span class="you">YOU</span> <span>(Dealer)</span></div>
+    <div class="hand" id="hand"></div>
+  </div>
+
+  <div class="actionbar">
+    <div class="rules">First to 500 points wins. <span>|</span> Dealer leads. <span>|</span> Highest trump wins the trick.</div>
+    <div class="action-buttons">
+      <button class="btn deal" id="deal">DEAL <kbd>D</kbd></button>
+      <button class="btn" id="newHand" disabled>NEW HAND</button>
+    </div>
+  </div>
+</section>
+</div>
+
+<script>
+document.addEventListener("DOMContentLoaded",()=>{
+ const suits=["♠","♥","♦","♣"], ranks=["4","5","6","7","8","9","10","J","Q","K","A"];
+ let deck=[],hand=[],cpu=[],scores=[0,0],phase="idle",trick=[],tricks=[0,0],contract=null,trump=null,current=0,handNo=1;
+ const $=id=>document.getElementById(id);
+ function log(t){const d=document.createElement("div");d.textContent=t;$("log").prepend(d)}
+ function makeDeck(){
+   deck=[];for(const s of suits)for(const r of ranks)deck.push({r,s});
+   deck.push({r:"Joker",s:"★"},{r:"Joker",s:"★"});
+   for(let i=deck.length-1;i;i--){const j=Math.floor(Math.random()*(i+1));[deck[i],deck[j]]=[deck[j],deck[i]]}
+ }
+ function deal(){
+   makeDeck();hand=[];cpu=[];trick=[];tricks=[0,0];contract=null;trump=null;current=0;phase="bidding";
+   for(let i=0;i<10;i++){hand.push(deck.pop());cpu.push(deck.pop())}
+   $("bidbox").style.display="block";$("deal").disabled=true;$("newHand").disabled=true;
+   $("handNo").textContent=handNo++;
+   log("--- New Hand ---");log("Dealer: You");log("Choose your bid or pass.");
+   render();
+ }
+ function sort(a,b){return (suits.indexOf(a.s)-suits.indexOf(b.s))||(ranks.indexOf(a.r)-ranks.indexOf(b.r))}
+ function red(s){return s==="♥"||s==="♦"}
+ function cardEl(c,click=false,i=-1){
+   const e=document.createElement(click?"button":"div");e.className="card "+(red(c.s)?"red ":"");
+   e.innerHTML='<span class="rank">'+c.r+'</span><span class="suit">'+c.s+'</span><span class="rank bottom">'+(i>=0?i+1:c.r)+'</span>';
+   if(click){e.type="button";e.classList.add("clickable");e.title="Play card "+(i+1);e.onclick=()=>play(c)}
+   return e
+ }
+ function render(){
+   $("us").textContent=scores[0]+" / 500";$("them").textContent=scores[1]+" / 500";
+   $("trumpName").textContent=trump==="NT"?"No Trumps":(trump?({ "♠":"Spades","♥":"Hearts","♦":"Diamonds","♣":"Clubs"}[trump]):"—");
+   $("trumpSymbol").textContent=trump==="NT"?"NT":(trump||"♠");
+   $("hand").replaceChildren(...hand.slice().sort(sort).map((c,i)=>cardEl(c,phase==="play"&&current===0&&legal(c),i)));
+   const cb=$("cpuHand");cb.replaceChildren();cpu.forEach(()=>{const e=document.createElement("div");e.className="card back";e.innerHTML="<span>500</span>";cb.append(e)});
+   $("trick").replaceChildren(...trick.map(t=>{const w=document.createElement("div");w.className="played";w.append(cardEl(t.c));w.append(document.createTextNode(t.p===0?"YOU":"CPU"));return w}));
+   $("status").innerHTML=phase==="bidding"?'YOU <span class="state">| Your Bid</span>':phase==="play"?(current===0?'YOU <span class="state" style="color:#35b7ff">| Your Turn</span>':'CPU <span class="state">| Thinking…</span>'):(phase==="done"?"Hand Complete":"CPU <span class=\"state\">| Pass</span>");
+ }
+ function legal(c){
+   if(!trick.length)return true;
+   const lead=trick[0].c.s;
+   if(c.r==="Joker"||c.s===lead)return true;
+   return !hand.some(x=>x.s===lead)
+ }
+ function submitBid(){
+   if(phase!=="bidding")return;
+   const v=$("bid").value;
+   if(v==="pass"){contract={level:6,suit:"♠",by:1};trump="♠";log("You pass. CPU takes 6 Spades.")}
+   else{contract={level:+v,suit:$("suit").value,by:0};trump=contract.suit==="NT"?null:contract.suit;log("You bid "+v+" "+contract.suit+".")}
+   phase="play";$("bidbox").style.display="none";render();cpuTurn()
+ }
+ function play(c){
+   if(phase!=="play"||current!==0||!legal(c))return;
+   hand.splice(hand.indexOf(c),1);trick.push({p:0,c});render();advance()
+ }
+ function strength(c,lead){
+   if(c.r==="Joker")return 1000;
+   const v=ranks.indexOf(c.r);
+   if(trump&&trump!=="NT"&&c.s===trump)return 500+v+(c.r==="J"?20:0);
+   if(c.s===lead)return 200+v;
+   return v
+ }
+ function advance(){
+   if(trick.length===2){setTimeout(resolve,450);return}
+   current=1;render();cpuTurn()
+ }
+ function cpuTurn(){
+   if(phase!=="play"||current!==1)return;
+   setTimeout(()=>{
+     const choices=cpu.filter(c=>{
+       if(!trick.length)return true;
+       const lead=trick[0].c.s;
+       return c.r==="Joker"||c.s===lead||!cpu.some(x=>x.s===lead)
+     });
+     const c=choices[Math.floor(Math.random()*choices.length)];
+     cpu.splice(cpu.indexOf(c),1);trick.push({p:1,c});render();resolve()
+   },550)
+ }
+ function resolve(){
+   if(trick.length<2){current=0;render();return}
+   const lead=trick[0].c.s,w=strength(trick[0].c,lead)>=strength(trick[1].c,lead)?trick[0]:trick[1];
+   tricks[w.p]++;log((w.p===0?"You":"CPU")+" win the trick.");trick=[];current=w.p;
+   if(!hand.length){finish();return}
+   render();if(current===1)cpuTurn()
+ }
+ function finish(){
+   const ours=tricks[0],theirs=tricks[1];
+   if(contract.by===0){
+     if(ours>=contract.level){scores[0]+=contract.level*10;log("Contract made: +"+contract.level*10+".")}
+     else{scores[0]-=contract.level*10;log("Contract failed: -"+contract.level*10+".")}
+   }else{
+     if(theirs>=contract.level){scores[1]+=contract.level*10;log("CPU makes its contract.")}
+     else{scores[1]-=contract.level*10;log("CPU fails its contract.")}
+   }
+   phase="done";$("newHand").disabled=false;render()
+ }
+ $("deal").onclick=deal;$("newHand").onclick=deal;$("bidBtn").onclick=submitBid;
+ $("passBtn").onclick=()=>{$("bid").value="pass";submitBid()};
+ document.querySelectorAll("[data-bid]").forEach(b=>b.onclick=()=>{$("bid").value=b.dataset.bid});
+ $("prevTrump").onclick=()=>{const s=$("suit");s.selectedIndex=(s.selectedIndex+4)%5};
+ $("nextTrump").onclick=()=>{const s=$("suit");s.selectedIndex=(s.selectedIndex+1)%5};
+ $("helpBtn").addEventListener("click",(e)=>{
+   e.preventDefault(); e.stopPropagation();
+   const p=document.querySelector(".controls-panel");
+   const hidden=getComputedStyle(p).display==="none";
+   p.style.display=hidden?"block":"none";
+   $("helpBtn").textContent=hidden?"HIDE HELP":"SHOW HELP";
+   $("helpBtn").setAttribute("aria-expanded",hidden?"true":"false");
+ });
+ document.addEventListener("keydown",e=>{
+   const k=e.key.toLowerCase();
+   if(k==="d"&&(phase==="idle"||phase==="done"))return deal();
+   if(k==="h")return $("helpBtn").click();
+   if(phase==="bidding"){
+     if(k==="p"){ $("bid").value="pass";return submitBid() }
+     if(["6","7","8","9"].includes(k)||k==="0"){$("bid").value=k==="0"?"10":k;return}
+     if(k==="arrowleft")return $("prevTrump").click();
+     if(k==="arrowright")return $("nextTrump").click();
+     if(k==="enter")return submitBid();
+   }
+   if(phase==="play"&&current===0){
+     const m={"1":0,"2":1,"3":2,"4":3,"5":4,"6":5,"7":6,"8":7,"9":8,"0":9};
+     if(m[k]!==undefined){const c=hand.slice().sort(sort)[m[k]];if(c&&legal(c))play(c)}
+   }
+ });
+ render();
+});
+</script>
+</body>
+</html>
