@@ -1,0 +1,434 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>500 — Card Game</title>
+<style>
+  :root { --felt:#0b5d3b; --felt2:#083f2a; --gold:#e7c66a; --cream:#fffaf0; --red:#b72d2d; }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:system-ui,-apple-system,Segoe UI,sans-serif;background:radial-gradient(circle at 50% 20%,#16835a,var(--felt) 45%,var(--felt2));color:white;min-height:100vh}
+  header{padding:18px 24px;text-align:center}
+  h1{margin:0;color:var(--gold);font-size:clamp(2rem,5vw,3.5rem);letter-spacing:.08em}
+  .sub{opacity:.85}
+  main{width:min(1100px,96vw);margin:auto;padding-bottom:30px}
+  .panel{background:#062d20cc;border:1px solid #ffffff25;border-radius:18px;padding:16px;box-shadow:0 12px 35px #0005}
+  .top{display:grid;grid-template-columns:1fr 1.5fr 1fr;gap:12px;align-items:center}
+  .score{text-align:center}.score strong{display:block;font-size:2rem;color:var(--gold)}
+  #message{text-align:center;font-weight:700;min-height:1.5em}
+  .table{margin-top:14px;display:grid;grid-template-columns:180px 1fr 180px;gap:14px;align-items:center}
+  .seat{text-align:center}.seat .cards{min-height:150px}
+  .center{text-align:center}
+  .trick{min-height:170px;display:flex;justify-content:center;align-items:center;gap:10px}
+  .cards{display:flex;justify-content:center;gap:8px;flex-wrap:wrap;min-height:30px}.empty{padding:30px;opacity:.8;width:100%;text-align:center}
+  .card{width:88px;height:126px;background:var(--cream);color:#111;border-radius:9px;padding:8px;display:flex;flex-direction:column;justify-content:space-between;box-shadow:0 5px 12px #0006;border:1px solid #ddd;user-select:none;flex:0 0 auto;font-family:Georgia,serif}.card button{font:inherit}
+  .card.red{color:var(--red)}
+  .card.back{background:repeating-linear-gradient(45deg,#173e8a,#173e8a 7px,#d9e5ff 8px,#d9e5ff 10px);border:5px solid white;color:white;display:flex;align-items:center;justify-content:center;font-weight:900;font-family:system-ui}.card.back span{font-size:1.1rem}
+  .card.clickable{cursor:pointer;transform:translateY(0);transition:.12s;outline:2px solid transparent}
+  .card.clickable::after{content:"";display:block}
+  kbd{background:#fff;color:#222;border-radius:4px;padding:1px 5px;font:600 .8em monospace}
+  .card.clickable:hover{transform:translateY(-8px);box-shadow:0 10px 18px #0008}
+  .rank{font-weight:800;font-size:1.4rem}.suit{font-size:2rem;text-align:center}.bottom{margin-top:16px}
+  button{border:0;border-radius:10px;padding:11px 16px;font-weight:800;cursor:pointer;background:var(--gold);color:#1b261f}
+  button.secondary{background:#ffffff18;color:white;border:1px solid #ffffff35}
+  button:disabled{opacity:.45;cursor:not-allowed}
+  .controls{display:flex;justify-content:center;gap:10px;flex-wrap:wrap}
+  .bidbox{display:none;margin-top:12px;text-align:center}.bidbox.show{display:block}
+  select{padding:10px;border-radius:9px;border:0;font-weight:700}
+  .log{margin-top:14px;max-height:130px;overflow:auto;font-size:.9rem;opacity:.9}
+  @media(max-width:760px){.table{grid-template-columns:1fr}.seat{order:2}.center{order:1}.seat.right{order:3}.cards{min-height:auto}.card{width:64px;height:92px;padding:5px}.suit{font-size:1.5rem}.rank{font-size:1rem}}
+</style>
+</head>
+<body>
+<header><h1>500</h1><div class="sub">A streamlined four-player trick-taking game</div></header>
+<main>
+  <section class="panel top">
+    <div class="score">You & Partner<strong id="us">0</strong></div>
+    <div id="message">Deal to start a hand.</div>
+    <div class="score">Opponents<strong id="them">0</strong></div>
+  </section>
+
+  <section class="panel table">
+    <div class="seat">
+      <b>West</b><div id="west" class="cards"></div>
+    </div>
+    <div class="center">
+      <div><b>Current trick</b></div>
+      <div id="trick" class="trick"></div>
+      <div id="bidbox" class="bidbox">
+        <label>Choose your bid:
+          <select id="bid">
+            <option value="pass">Pass</option>
+            <option value="6">6</option><option value="7">7</option>
+            <option value="8">8</option><option value="9">9</option>
+            <option value="10">10</option>
+          </select>
+        </label>
+        <select id="suit">
+          <option value="♠">♠ Spades</option><option value="♥">♥ Hearts</option>
+          <option value="♦">♦ Diamonds</option><option value="♣">♣ Clubs</option>
+          <option value="NT">No Trumps</option>
+        </select>
+        <button id="bidBtn">Bid</button>
+      </div>
+    </div>
+    <div class="seat right">
+      <b>East</b><div id="east" class="cards"></div>
+    </div>
+  </section>
+
+  <section class="panel bottom">
+    <div style="text-align:center"><b>Your hand</b></div>
+    <div id="hand" class="cards" style="margin:12px 0">
+      <div id="handPrompt" style="opacity:.8;padding:30px">Click <b>Deal</b> or press <kbd>D</kbd> to receive your cards.</div>
+    </div>
+    <div class="controls">
+      <button id="deal">Deal</button>
+      <button id="newHand" class="secondary" disabled>New hand</button>
+      <button id="help" class="secondary">Controls</button>
+    </div>
+    <div id="helpbox" class="log" style="display:none">
+      <b>Mouse:</b> click cards to play; use the bid controls during bidding.<br>
+      <b>Keyboard:</b> <kbd>D</kbd> deal/new hand, <kbd>1–7</kbd> play a card from your hand,
+      <kbd>P</kbd> pass, <kbd>6–0</kbd> choose a bid of 6–10, <kbd>ArrowLeft/Right</kbd> change suit,
+      <kbd>Enter</kbd> submit the bid, <kbd>H</kbd> toggle help.
+    </div>
+    <div id="log" class="log"></div>
+  </section>
+</main>
+
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+  const suits = ["♠","♥","♦","♣"];
+  const ranks = ["4","5","6","7","8","9","10","J","Q","K","A"];
+  const players = ["You","West","Partner","East"];
+  let hands = [[],[],[],[]], deck = [], scores = [0,0];
+  let phase = "idle", current = 0, trick = [], trump = null;
+  let contract = null, tricksWon = [0,0,0,0];
+
+  const $ = id => document.getElementById(id);
+
+  function log(text) {
+    const box = $("log");
+    if (!box) return;
+    const row = document.createElement("div");
+    row.textContent = text;
+    box.prepend(row);
+  }
+
+  function makeDeck() {
+    deck = [];
+    for (const s of suits)
+      for (const r of ranks)
+        deck.push({r,s});
+    deck.push({r:"Joker",s:"★"},{r:"Joker",s:"★"});
+    for (let i=deck.length-1;i>0;i--) {
+      const j=Math.floor(Math.random()*(i+1));
+      [deck[i],deck[j]]=[deck[j],deck[i]];
+    }
+  }
+
+  function deal() {
+    makeDeck();
+    hands=[[],[],[],[]];
+    for(let i=0;i<10;i++)
+      for(let p=0;p<4;p++)
+        hands[p].push(deck.pop());
+
+    scores[0]=scores[0];
+    tricksWon=[0,0,0,0];
+    trick=[];
+    trump=null;
+    contract=null;
+    current=0;
+    phase="bidding";
+
+    $("deal").disabled=true;
+    $("newHand").disabled=true;
+    $("bidbox").classList.add("show");
+    $("bid").value="pass";
+    $("suit").value="♠";
+
+    log("Cards dealt. Choose a bid or pass.");
+    render();
+  }
+
+  function newHand() {
+    deal();
+  }
+
+  function sortCards(a,b) {
+    if(a.r==="Joker") return 1;
+    if(b.r==="Joker") return -1;
+    return suits.indexOf(a.s)-suits.indexOf(b.s) ||
+           ranks.indexOf(a.r)-ranks.indexOf(b.r);
+  }
+
+  function isRed(s) {
+    return s==="♥" || s==="♦";
+  }
+
+  function cardElement(c, clickable=false, index=-1) {
+    const el=document.createElement("button");
+    el.type="button";
+    el.className="card "+(isRed(c.s)?"red ":"")+(clickable?"clickable":"");
+    el.innerHTML = `
+      <span class="rank">${c.r}</span>
+      <span class="suit">${c.s}</span>
+      <span class="rank bottom">${index>=0 ? index+1 : c.r}</span>`;
+    if(clickable) {
+      el.title=`Play ${c.r}${c.s} — keyboard ${index+1}`;
+      el.addEventListener("click",()=>playCard(c));
+    } else {
+      el.disabled=true;
+    }
+    return el;
+  }
+
+  function render() {
+    $("us").textContent=scores[0];
+    $("them").textContent=scores[1];
+
+    const hand=$("hand");
+    hand.replaceChildren();
+
+    const sorted=hands[0].slice().sort(sortCards);
+    if(!sorted.length) {
+      const msg=document.createElement("div");
+      msg.className="empty";
+      msg.textContent="Press Deal or D to start a hand.";
+      hand.append(msg);
+    } else {
+      sorted.forEach((c,i)=>{
+        hand.append(cardElement(c,phase==="play" && current===0 && legal(c),i));
+      });
+    }
+
+    const west=$("west");
+    west.replaceChildren();
+    hands[1].forEach(()=> {
+      const back=document.createElement("div");
+      back.className="card back";
+      back.innerHTML="<span>500</span>";
+      west.append(back);
+    });
+
+    const east=$("east");
+    east.replaceChildren();
+    hands[3].forEach(()=> {
+      const back=document.createElement("div");
+      back.className="card back";
+      back.innerHTML="<span>500</span>";
+      east.append(back);
+    });
+
+    const trickBox=$("trick");
+    trickBox.replaceChildren();
+    trick.forEach(t=>{
+      const wrap=document.createElement("div");
+      wrap.className="played";
+      wrap.append(cardElement(t.c,false));
+      const label=document.createElement("small");
+      label.textContent=players[t.p];
+      wrap.append(label);
+      trickBox.append(wrap);
+    });
+
+    $("message").textContent =
+      phase==="idle" ? "Press Deal to start." :
+      phase==="bidding" ? "Your bid: choose a contract or pass." :
+      phase==="play" ? (current===0 ? "Your turn — click a card or press 1–10." : `${players[current]} is playing…`) :
+      "Hand complete.";
+  }
+
+  function legal(c) {
+    if(!trick.length) return true;
+    const lead=trick[0].c.s;
+    if(c.r==="Joker") return true;
+    if(c.s===lead) return true;
+    return !hands[0].some(x=>x.s===lead);
+  }
+
+  function bid() {
+    if(phase!=="bidding") return;
+
+    const value=$("bid").value;
+    if(value==="pass") {
+      log("You pass. The computer chooses a contract.");
+      contract={level:6,suit:"♠",by:1};
+      trump="♠";
+    } else {
+      contract={level:Number(value),suit:$("suit").value,by:0};
+      trump=contract.suit==="NT"?null:contract.suit;
+      log(`You bid ${contract.level} ${contract.suit}.`);
+    }
+
+    phase="play";
+    $("bidbox").classList.remove("show");
+    render();
+    computerTurn();
+  }
+
+  function playCard(c) {
+    if(phase!=="play" || current!==0 || !legal(c)) return;
+    const i=hands[0].indexOf(c);
+    if(i<0) return;
+    hands[0].splice(i,1);
+    trick.push({p:0,c});
+    render();
+    advanceTurn();
+  }
+
+  function effectiveSuit(c) {
+    if(c.r==="Joker") return trump || "NT";
+    return c.s;
+  }
+
+  function strength(c,lead) {
+    if(c.r==="Joker") return 1000;
+    const s=effectiveSuit(c);
+    if(trump && s===trump) return 500+ranks.indexOf(c.r);
+    if(s===lead) return 200+ranks.indexOf(c.r);
+    return ranks.indexOf(c.r);
+  }
+
+  function advanceTurn() {
+    if(trick.length===4) {
+      setTimeout(resolveTrick,400);
+      return;
+    }
+    current=(current+1)%4;
+    render();
+    computerTurn();
+  }
+
+  function computerTurn() {
+    if(phase!=="play" || current===0) return;
+    setTimeout(()=>{
+      if(phase!=="play" || current===0) return;
+      const choices=hands[current].filter(legalForComputer);
+      const choice=choices[Math.floor(Math.random()*choices.length)];
+      hands[current].splice(hands[current].indexOf(choice),1);
+      trick.push({p:current,c:choice});
+      render();
+      advanceTurn();
+    },450);
+  }
+
+  function legalForComputer(c) {
+    if(!trick.length) return true;
+    const lead=trick[0].c.s;
+    if(c.r==="Joker" || c.s===lead) return true;
+    return !hands[current].some(x=>x.s===lead);
+  }
+
+  function resolveTrick() {
+    const lead=trick[0].c.s;
+    let winner=trick[0];
+    for(const t of trick.slice(1))
+      if(strength(t.c,lead)>strength(winner.c,lead)) winner=t;
+
+    tricksWon[winner.p]++;
+    log(`${players[winner.p]} wins the trick.`);
+    current=winner.p;
+    trick=[];
+
+    if(hands.every(h=>h.length===0)) {
+      finishHand();
+    } else {
+      render();
+      computerTurn();
+    }
+  }
+
+  function finishHand() {
+    const ours=tricksWon[0]+tricksWon[2];
+    const theirs=tricksWon[1]+tricksWon[3];
+
+    if(contract.by===0) {
+      if(ours>=contract.level) {
+        scores[0]+=contract.level*10;
+        log(`Contract made: +${contract.level*10} points.`);
+      } else {
+        scores[0]-=contract.level*10;
+        log(`Contract failed: -${contract.level*10} points.`);
+      }
+    } else {
+      if(theirs>=contract.level) {
+        scores[1]+=contract.level*10;
+        log(`Opponents make their contract.`);
+      } else {
+        scores[1]-=contract.level*10;
+        log(`Opponents fail their contract.`);
+      }
+    }
+
+    phase="done";
+    $("deal").disabled=true;
+    $("newHand").disabled=false;
+    $("message").textContent=`Hand over: ${ours} tricks to you, ${theirs} to opponents.`;
+    render();
+  }
+
+  $("deal").addEventListener("click",deal);
+  $("newHand").addEventListener("click",newHand);
+  $("bidBtn").addEventListener("click",bid);
+
+  $("help").addEventListener("click",()=>{
+    $("helpbox").style.display=$("helpbox").style.display==="none"?"block":"none";
+  });
+
+  document.addEventListener("keydown",e=>{
+    const key=e.key.toLowerCase();
+
+    if(key==="h") {
+      $("helpbox").style.display=$("helpbox").style.display==="none"?"block":"none";
+      return;
+    }
+
+    if(key==="d") {
+      if(phase==="idle" || phase==="done") deal();
+      return;
+    }
+
+    if(phase==="bidding") {
+      if(key==="p") {
+        $("bid").value="pass";
+        bid();
+        return;
+      }
+
+      const bidKeys={"6":"6","7":"7","8":"8","9":"9","0":"10"};
+      if(bidKeys[key]) {
+        $("bid").value=bidKeys[key];
+        return;
+      }
+
+      if(key==="arrowleft" || key==="arrowright") {
+        const sel=$("suit");
+        sel.selectedIndex=(sel.selectedIndex+(key==="arrowright"?1:-1)+sel.options.length)%sel.options.length;
+        return;
+      }
+
+      if(key==="enter") {
+        bid();
+        return;
+      }
+    }
+
+    if(phase==="play" && current===0) {
+      const indexMap={"1":0,"2":1,"3":2,"4":3,"5":4,"6":5,"7":6,"8":7,"9":8,"0":9};
+      if(indexMap[key]!==undefined) {
+        const sorted=hands[0].slice().sort(sortCards);
+        const c=sorted[indexMap[key]];
+        if(c && legal(c)) playCard(c);
+      }
+    }
+  });
+
+  // Initial visible state.
+  render();
+});
+</script>
+</body>
+</html>
